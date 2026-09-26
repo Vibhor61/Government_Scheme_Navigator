@@ -114,3 +114,4 @@ The system continuously verifies generated responses:
 ## 👥 Project Team
 - **Department:** Computer Science and Technology, Maharaja Agrasen Institute of Technology
 - **Batch:** 2023–2027 (7th Semester)
+- **Team:** Vibhor, Himanshu, Pratyaksh
