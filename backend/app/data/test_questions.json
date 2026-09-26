@@ -1,0 +1,92 @@
+{
+  "test_set": [
+    {
+      "id": "q1",
+      "query": "I am a small farmer owning 1.5 acres of agricultural land. Are there any direct cash benefit schemes for me to buy seeds and fertilizer?",
+      "expected_schemes": ["pm-kisan"],
+      "expected_category": "Agriculture",
+      "ground_truth_claims": [
+        "PM-KISAN provides ₹6,000 per year in three equal installments of ₹2,000 every four months.",
+        "Small and marginal farmers holding cultivable landholding in their names are eligible.",
+        "The benefit is transferred directly to the Aadhaar-linked bank account (DBT)."
+      ]
+    },
+    {
+      "id": "q2",
+      "query": "My grandmother is 72 years old. Does Ayushman Bharat cover senior citizens for free hospital surgeries?",
+      "expected_schemes": ["ab-pmjay"],
+      "expected_category": "Healthcare",
+      "ground_truth_claims": [
+        "Ayushman Bharat AB-PMJAY provides health insurance cover up to ₹5 Lakh per year for hospital care.",
+        "All senior citizens aged 70 years and above are eligible for dedicated coverage regardless of income under Ayushman Vay Vandana Card.",
+        "Treatment is cashless and pre-existing diseases are covered from day one."
+      ]
+    },
+    {
+      "id": "q3",
+      "query": "I am a street vendor with a small tea stall. Can I get a loan without any collateral or security?",
+      "expected_schemes": ["pm-svanidhi"],
+      "expected_category": "MSME & Livelihoods",
+      "ground_truth_claims": [
+        "PM SVANidhi offers collateral-free working capital loan starting with ₹10,000 in the first tranche.",
+        "7% interest subsidy is credited upon timely quarterly repayment.",
+        "Vendors with a Certificate of Vending or Letter of Recommendation from local bodies are eligible."
+      ]
+    },
+    {
+      "id": "q4",
+      "query": "My daughter is studying in 1st year B.Tech in an AICTE approved college. Is there any scholarship for girl students?",
+      "expected_schemes": ["aicte-pragati"],
+      "expected_category": "Education & Scholarships",
+      "ground_truth_claims": [
+        "AICTE Pragati Scholarship provides ₹50,000 per annum for girl students pursuing Degree or Diploma in technical institutions.",
+        "Family income must not exceed ₹8,00,000 per annum.",
+        "Maximum two girl children per family are eligible."
+      ]
+    },
+    {
+      "id": "q5",
+      "query": "I want to open a long term savings account for my 5 year old daughter with tax exemption and high interest.",
+      "expected_schemes": ["sukanya-samriddhi"],
+      "expected_category": "Women & Child Welfare",
+      "ground_truth_claims": [
+        "Sukanya Samriddhi Yojana (SSY) can be opened for girls from birth up to 10 years of age.",
+        "Offers high sovereign-backed interest rate (currently 8.2% p.a.) with full tax exemption under Section 80C (EEE status).",
+        "Maturity is 21 years from account opening or upon marriage after age 18."
+      ]
+    },
+    {
+      "id": "q6",
+      "query": "I work as a traditional carpenter. Is there any scheme providing free modern toolkits and skill training?",
+      "expected_schemes": ["pm-vishwakarma"],
+      "expected_category": "MSME & Livelihoods",
+      "ground_truth_claims": [
+        "PM Vishwakarma scheme provides ₹15,000 digital toolkit incentive grant for traditional craftspeople.",
+        "Provides daily stipend of ₹500 during skill training.",
+        "Offers collateral-free enterprise loan up to ₹3,00,000 at concessional 5% interest rate."
+      ]
+    },
+    {
+      "id": "q7",
+      "query": "I want to install rooftop solar panels for my house to reduce my electricity bills to zero. How much subsidy does the government give?",
+      "expected_schemes": ["pm-surya-ghar"],
+      "expected_category": "Renewable Energy & Infrastructure",
+      "ground_truth_claims": [
+        "PM Surya Ghar Muft Bijli Yojana provides up to ₹78,000 direct central subsidy for rooftop solar systems.",
+        "Provides up to 300 units of free clean electricity per month.",
+        "Subsidy is directly transferred into the beneficiary bank account within 30 days."
+      ]
+    },
+    {
+      "id": "q8",
+      "query": "I am a 22 year old recent graduate looking for corporate internship in top companies with monthly stipend.",
+      "expected_schemes": ["pm-internship-scheme"],
+      "expected_category": "Skills & Youth Development",
+      "ground_truth_claims": [
+        "PM Internship Scheme provides 12 months internship in top 500 companies in India.",
+        "Provides monthly stipend of ₹5,000 along with a one-time grant of ₹6,000.",
+        "Youth aged 21 to 24 who are not in full-time employment or higher education are eligible."
+      ]
+    }
+  ]
+}

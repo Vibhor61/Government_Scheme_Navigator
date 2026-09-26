@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  min-width: 320px;
+  background: #f5f7f3;
+  color: #18231e;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gradient-header {
+  background: #123d32;
+  background-image: linear-gradient(110deg, #123d32 0%, #174a3b 64%, #205545 100%);
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Newsreader', Georgia, serif;
+  letter-spacing: 0;
+}
+
+button, input {
+  font: inherit;
+}
+
+::selection {
+  background: #b8e2c4;
+  color: #123d32;
+}
+
+.page-canvas {
+  background-color: #f5f7f3;
+  background-image: radial-gradient(#dce5dc 0.65px, transparent 0.65px);
+  background-size: 18px 18px;
+}
+
+.text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.text-\[11px\] {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+}
+
+.text-\[10px\] {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #e8eee8;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #a8b9ac;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #718b78;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  main > div {
+    animation: arrive 420ms ease-out both;
+  }
+
+  @keyframes arrive {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
