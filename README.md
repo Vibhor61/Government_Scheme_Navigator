@@ -1,113 +1,119 @@
-# Citizen Rights and Government Scheme Navigator
-### A Retrieval-Augmented Generation (RAG) System for Scheme Discovery and Eligibility Awareness
+---
+title: GovScheme AI Crawler
+emoji: 🏛️
+colorFrom: green
+colorTo: emerald
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# GovScheme AI: Evidence-First Government Scheme Navigator
+### National scheme discovery with source-grounded eligibility checks
 **Department of Computer Science and Technology | Maharaja Agrasen Institute of Technology (MAIT)**  
 *Minor Project — 7th Semester (Batch 2023–2027)*
 
 ---
 
 ## 📌 Project Overview
-India offers thousands of welfare schemes across agriculture, healthcare, education, and employment. However, many eligible citizens miss out because official documents use complex administrative language and fragmented portals.
+India administers hundreds of central and state welfare initiatives across agriculture, healthcare, education, and MSME sectors. However, many eligible citizens remain unaware because official portals are fragmented and administrative circulars are dense.
 
-**Citizen Rights and Government Scheme Navigator** bridges this gap:
-- **Natural Language Querying:** Citizens describe their real-life situations in everyday language.
-- **Dual-Arm Hybrid Retrieval:** Merges PostgreSQL Full-Text Search (lexical `tsvector`/BM25) with dense semantic embeddings (`pgvector` + `all-MiniLM-L6-v2`) using **Reciprocal Rank Fusion (RRF)**.
-- **Fact-Grounded Generation:** Enforces strict prompt grounding with citations to official scheme circulars, preventing hallucination.
-- **RAGAS Evaluation Framework:** Automated claim-level verification of **Faithfulness** and **Answer Relevancy**.
-- **Social Impact:** Aligned with **UN Sustainable Development Goal 16 (Peace, Justice and Strong Institutions)**.
-
----
-
-## 🏛 System Architecture & Hybrid Pipeline
-
-```
-                              ┌───────────────────────────┐
-                              │   Citizen Natural Query   │
-                              └─────────────┬─────────────┘
-                                            │
-                     ┌──────────────────────┴──────────────────────┐
-                     ▼                                             ▼
-          ┌──────────────────────┐                     ┌──────────────────────┐
-          │ Lexical Search (FTS) │                     │ Dense Vector Search  │
-          │   tsvector / BM25    │                     │  pgvector / Cosine   │
-          └──────────┬───────────┘                     └──────────┬───────────┘
-                     │                                             │
-                     └──────────────────────┬──────────────────────┘
-                                            ▼
-                              ┌───────────────────────────┐
-                              │ Reciprocal Rank Fusion    │
-                              │  Score = Σ (w / (60 + R)) │
-                              └─────────────┬─────────────┘
-                                            ▼
-                              ┌───────────────────────────┐
-                              │ Top-K Verified Chunks     │
-                              └─────────────┬─────────────┘
-                                            ▼
-                              ┌───────────────────────────┐
-                              │    Grounded Generator     │
-                              │   (Strict Fact Context)   │
-                              └─────────────┬─────────────┘
-                                            │
-                     ┌──────────────────────┴──────────────────────┐
-                     ▼                                             ▼
-          ┌──────────────────────┐                     ┌──────────────────────┐
-          │ Sourced Answer + URL │                     │   RAGAS Evaluation   │
-          │   & Eligibility Card │                     │ Faithfulness & Rel.  │
-          └──────────────────────┘                     └──────────────────────┘
-```
+- **One nationwide scheme repository:** All topics search the myScheme national platform, which indexes Central and State/UT schemes. The crawler does not choose arbitrary state portals or add topic-specific portal patches.
+- **LLM query planning, not URL authority:** The LLM can propose search terms for the single registered repository. The API path and host are constructed by deterministic code; an LLM cannot add hosts or authorize arbitrary requests.
+- **Catalog-backed crawling:** Search results return scheme slugs and summaries. The crawler fetches scheme-detail records through myScheme's same-host API, with bounded query count, page size, and detail count.
+- **Evidence validation:** Each extracted eligibility rule must include a quotation present in the fetched scheme record. Supported fields, operators, thresholds, and quotation context are checked before use. Benefits and application steps are shown only when their evidence quotations are also present.
+- **Questionnaire and comparison:** Missing State/UT and supported rule fields are asked together when state-specific candidates are found. The evaluator compares explicit answers to cited rules; missing, ambiguous, or conflicting values remain unknown. Passing captured rules is not an approval or guarantee.
+- **Exact-host security allowlist:** The active crawler allowlist contains only the exact myScheme host (and its `www` variant). A `.gov.in` or `.nic.in` suffix alone is not trusted; arbitrary subdomains and redirects are rejected.
+- **Honest limits:** Coverage depends on myScheme's current catalog, search ranking, and detail records. The app does not claim exhaustive coverage and will not issue a verdict if it cannot retrieve and validate supported rules.
+- **Crawler dashboard:** Shows portal registry entries, request status, cache activity, and trace details.
 
 ---
 
-## 🐳 Docker Deployment (Images prefixed with `minor_`)
+## 🏛 System Architecture & Agent Workflow
 
-All Docker services and container images strictly use the `minor_` prefix as required:
+```
+                               ┌───────────────────────────┐
+                               │   Citizen Natural Query   │
+                               └─────────────┬─────────────┘
+                                             │
+                                             ▼
+                               ┌───────────────────────────┐
+                               │ Understand Scheme Request │
+                               │ LLM Plan: Search Terms     │
+                               └─────────────┬─────────────┘
+                                             │
+                                             ▼
+                               ┌───────────────────────────┐
+                ┌────────────────────────────────────────────┐
+                │ Search Central + State/UT catalogue       │
+                │ Exact myScheme host + fixed internal API  │
+                │ Bounded scheme-detail fetch               │
+                └─────────────────────┬──────────────────────┘
+                                      ▼
+                                  ┌─────────────────────────────┐
+                                  │ Exact registered-host check │
+                                  └──────────────┬──────────────┘
+                                                 ▼
+                                  ┌─────────────────────────────┐
+                                  │ Extract quoted scheme rules │
+                                  └──────────────┬──────────────┘
+                                                 ▼
+                                  ┌─────────────────────────────┐
+                                  │ Validate quotes + rule shape │
+                                  └──────────────┬──────────────┘
+                                                 ▼
+                                  ┌─────────────────────────────┐
+                                  │ Ask missing supported facts │
+                                  │ Compare deterministically   │
+                                  │ Cite checks; preserve UNKNOWN│
+                                  └─────────────────────────────┘
+```
 
-| Service | Image Name | Container Name | Port | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| **Database** | `pgvector/pgvector:pg16` | `minor_postgres` | `5432` | PostgreSQL 16 with pgvector extension |
-| **Backend API** | `minor_backend:latest` | `minor_backend` | `8000` | FastAPI Hybrid RAG Engine |
-| **Frontend UI** | `minor_frontend:latest` | `minor_frontend` | `3000` | Nginx + React.js web interface |
+---
 
-### 🚀 One-Shot Run with Docker Compose:
+## 🚀 Quick Run (Docker)
+
+Start both services with Docker Compose:
 ```bash
 docker compose up --build
 ```
-Once started:
-- 🌐 **Web Interface:** [http://localhost:3000](http://localhost:3000) (or [http://localhost:8000](http://localhost:8000))
+Open **[http://localhost:3000](http://localhost:3000)** in any web browser.
+
+- 🕷️ **Crawler Agent & Mission Control:** [http://localhost:8000](http://localhost:8000) (select Crawler Agent tab)
 - 📖 **Interactive Swagger API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- 🔍 **Health Status:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
+- 🔍 **Crawler Live Dashboard API:** [http://localhost:8000/api/crawler/dashboard](http://localhost:8000/api/crawler/dashboard)
 
----
-
-## 💻 Standalone Python Run (Zero Setup Required)
-
-If running directly on Windows without Docker:
+Run focused backend checks in the Docker image:
 ```bash
-# Run the server directly
-python run_backend.py
+docker compose run --build --rm minor_backend python -m unittest discover -s tests -v
 ```
-Open **[http://localhost:8000](http://localhost:8000)** in any browser.
 
 ---
 
-## 📊 RAGAS Evaluation Metrics
+## 🐳 Docker Deployment
 
-The system continuously verifies generated responses:
-1. **Faithfulness Score ($\ge 98\%$):**
-   $$\text{Faithfulness} = \frac{|\text{Supported Claims}|}{|\text{Total Claims in Answer}|}$$
-   Every extracted fact (benefit amount, land size, age limit) is validated against official scheme texts.
-2. **Answer Relevancy Score ($\ge 95\%$):**
-   Evaluates semantic alignment between citizen intent and generated response summary.
-3. **Execution Latency:**
-   Sub-25ms hybrid retrieval and ranking pipeline.
+The system is fully containerized with Docker Compose:
+
+| Service | Container Name | Port | Description |
+| :--- | :--- | :--- | :--- |
+| **Backend API** | `minor_backend` | `8000` | FastAPI national scheme discovery workflow and crawler (with persistent SQLite website cache) |
+| **Frontend UI** | `minor_frontend` | `3000` | Nginx + React.js SPA Dashboard |
+
+Run using:
+```bash
+docker compose up --build
+```
 
 ---
 
-## 📚 Real Welfare Schemes Covered
-- **Agriculture:** PM-KISAN, Pradhan Mantri Fasal Bima Yojana (PMFBY).
-- **Healthcare:** Ayushman Bharat (AB-PMJAY) including Senior Citizens (70+) coverage.
-- **Education:** AICTE Pragati Scholarship for Girls, PM YASASVI, NMMSS.
-- **Employment & Business:** PM SVANidhi (Street Vendors), PM Vishwakarma, PMMY (Mudra Loan), MGNREGA.
-- **Social Security & Women:** Sukanya Samriddhi Yojana (SSY), Atal Pension Yojana (APY).
+## 📊 Core Crawler Agent Capabilities
+
+1. **Shared scheme flow:** Every query uses the same query-planning, myScheme search, scheme-detail retrieval, source-quote validation, questionnaire, and deterministic comparison steps.
+2. **Minimal exact-host allowlist:** Only the myScheme repository host and its `www` variant are crawlable. Users cannot submit arbitrary `.gov.in` or `.nic.in` hosts.
+3. **Central/state separation:** Scheme jurisdiction comes from myScheme records. State-specific scheme results are withheld until the user's State/UT is known.
+4. **Content-aware extraction:** The crawler handles HTML, JSON, XML, plain text, and text-based PDF responses. HTML parsing tolerates void tags and malformed nesting; canonical redirects are followed only to explicitly registered hosts.
+5. **Transport and extraction are reported separately:** TLS verification remains enabled. A page returning HTTP 200 with no readable static text is retried with a Playwright/Chromium renderer. Browser requests and redirects are restricted to exact registered HTTPS hosts; image-only pages still need OCR.
+6. **Bounded evidence:** Rules are extracted at request time from fetched scheme records, rather than maintained in a manually curated database. A passing result means only that every captured supported rule passed; it does not guarantee the source record exposed every condition or imply approval. If extraction, evidence, or comparison is insufficient, the result remains unknown.
 
 ---
 

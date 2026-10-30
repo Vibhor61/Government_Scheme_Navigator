@@ -17,9 +17,13 @@ ENV/
 
 # Local Databases
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 schemes_navigator.db
+cache_storage/
+**/cache_storage/
 
 # Documents & Reports
 *.docx
@@ -29,6 +33,13 @@ schemes_navigator.db
 *.ppt
 *.xlsx
 *.xls
+
+# Media & Screenshots
+*screenshot*
+*Screenshot*
+*.png
+*.jpg
+*.jpeg
 
 # Local helper scripts
 *.bat

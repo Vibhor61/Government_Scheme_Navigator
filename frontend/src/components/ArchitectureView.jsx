@@ -4,45 +4,46 @@ import { Layers, Database, Cpu, Search, Sparkles, Shield, ArrowRight, Globe, Che
 export default function ArchitectureView() {
   const pipelineSteps = [
     {
-      title: "1. Citizen Query Ingestion",
-      desc: "Natural language query input (e.g., 'small farmer owning 2 acres looking for fertilizer support').",
+      title: "1. Citizen Query & Intent Analysis",
+      desc: "Deterministic keyword rules classify the topic. The user supplies a State/UT before state-specific portals are selected.",
       icon: Search,
       color: "bg-blue-50 text-blue-700 border-blue-200"
     },
     {
-      title: "2. Dual Hybrid Retrieval",
-      desc: "Parallel execution: Lexical BM25 / FTS on tsvector + 384-dim Dense vector nearest-neighbor search.",
-      icon: Database,
+      title: "2. Whitelist Verification & Catalog",
+      desc: "Validates each target against the exact registered-host catalog; government-looking domains are not trusted by suffix alone.",
+      icon: Shield,
       color: "bg-purple-50 text-purple-700 border-purple-200"
     },
     {
-      title: "3. Reciprocal Rank Fusion (RRF)",
-      desc: "Score = 0.4/(60+Rank_lex) + 0.6/(60+Rank_dense) to fuse rankings without score scale mismatch.",
-      icon: Layers,
+      title: "3. Async Crawling & Two-Tier Cache",
+      desc: "Reads the portal cache or fetches registered pages, then extracts readable HTML, JSON, XML, text, or PDF content.",
+      icon: Database,
       color: "bg-amber-50 text-amber-700 border-amber-200"
     },
     {
-      title: "4. Grounded Generation",
-      desc: "Prompt strictly conditioned on top K retrieved chunks. Disallows fabricated eligibility criteria.",
-      icon: Sparkles,
-      color: "bg-emerald-50 text-emerald-700 border-emerald-200"
+      title: "4. Cross-Source Conflict Detection",
+      desc: "Reports portal and extraction outcomes. Cross-source scheme-rule comparison is not enabled because verified structured rules are not configured.",
+      icon: Layers,
+      color: "bg-rose-50 text-rose-700 border-rose-200"
     },
     {
-      title: "5. RAGAS Evaluation & Tracing",
-      desc: "Automated verification of Faithfulness (claim support) and Answer Relevancy scores.",
-      icon: Shield,
-      color: "bg-rose-50 text-rose-700 border-rose-200"
+      title: "5. ReAct Synthesis & Grounded Checklist",
+      desc: "Returns separate Central and selected State/UT portal candidates and a trace. Eligibility is explicitly not evaluated without source-cited rules.",
+      icon: Sparkles,
+      color: "bg-emerald-50 text-emerald-700 border-emerald-200"
     }
   ];
 
   const techStack = [
-    { component: "Core Languages", tech: "Python 3.12, SQL, JavaScript (ES2024)" },
-    { component: "Backend Framework", tech: "FastAPI, LangChain, Pydantic v2, Uvicorn" },
+    { component: "Core Languages", tech: "Python 3.12, JavaScript (ES2024)" },
+    { component: "Routing Engine", tech: "Deterministic topic and jurisdiction selection with an explicit exact-host registry" },
+    { component: "Crawler & Ingestion Engine", tech: "HTTPX, HTML Parser, content-type extraction, exact-host request guard" },
+    { component: "Website Cache", tech: "Multi-Tier Snapshot Cache (Persistent SQLite on Disk + Memory LRU for visited URLs, survives reboots)" },
+    { component: "Backend & APIs", tech: "FastAPI, Pydantic v2, Uvicorn, Asyncio, Python-dotenv" },
     { component: "Frontend Interface", tech: "React.js 18, Vite, Tailwind CSS, Lucide Icons" },
-    { component: "Database & Storage", tech: "PostgreSQL with pgvector & tsvector (Dual support for SQLite fallback)" },
-    { component: "AI & Search Engine", tech: "Sentence Transformers (all-MiniLM-L6-v2), BM25 Lexical + Cosine Semantic" },
-    { component: "Evaluation & Tracing", tech: "RAGAS-style Faithfulness & Relevancy Engine, Latency Tracking" },
-    { component: "Deployment & Containers", tech: "Docker, Docker-Compose (images prefixed with 'minor_')" }
+    { component: "Eligibility Rules", tech: "No verified machine-readable rules catalog; eligibility is not evaluated" },
+    { component: "Deployment & Containers", tech: "Docker, Docker Compose (Lightweight standalone containers)" }
   ];
 
   return (
@@ -51,7 +52,7 @@ export default function ArchitectureView() {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">System Architecture & SDG Alignment</h2>
         <p className="text-sm text-slate-500">
-          Complete technical architecture, hybrid retrieval dataflow, and social impact mapping as detailed in the project synopsis.
+          Current implemented portal-routing and crawling workflow. Scheme eligibility evaluation is not yet available.
         </p>
       </div>
 
@@ -59,7 +60,7 @@ export default function ArchitectureView() {
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
         <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
           <Cpu className="w-5 h-5 text-emerald-600" />
-          <span>End-to-End Hybrid RAG Pipeline</span>
+          <span>Registered Portal Routing Pipeline</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
