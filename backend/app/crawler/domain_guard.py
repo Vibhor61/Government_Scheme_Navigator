@@ -5,7 +5,8 @@ Provides enterprise-grade input validation:
   2. URL & Link Pasting Guardrail (blocks untrusted third-party/commercial/phishing links; allows genuine *.gov.in / *.nic.in).
   3. Prompt Injection & Jailbreak Defense (resists override attacks, system leaks, and malicious command patterns).
   4. Out-of-Domain Scope Control (gracefully deflects non-welfare queries like coding, homework, sports, cinema).
-  5. Official In-Domain Greetings & Context Preservation (warm guidance, maintains multi-turn profile context).
+  5. Geographic Scope Enforcement (blocks foreign/abroad/overseas/non-India queries even when scheme words appear).
+  6. Official In-Domain Greetings & Context Preservation (warm guidance, maintains multi-turn profile context).
 """
 
 import re
@@ -66,6 +67,47 @@ SINGLE_WORD_SCHEME_TERMS = {
     "uttar", "uttarakhand", "bengal", "delhi", "jammu", "kashmir", "ladakh",
     "chandigarh", "puducherry", "pondicherry", "andaman", "nicobar", "lakshadweep"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GEOGRAPHIC SCOPE: India-only. These patterns fire even when scheme/welfare
+# words are present (e.g. "foreign education scheme", "UK scholarship").
+# Evaluated with PRIORITY before the has_scheme_terms override.
+# ─────────────────────────────────────────────────────────────────────────────
+GEOGRAPHIC_OOD_PATTERNS = [
+    # Explicit abroad / overseas / foreign keywords
+    r"\b(?:abroad|abrod|overseas|videsh|videshi)\b",
+
+    # Foreign education, foreign studies, foreign scholarships (including common typos like eucation, foriegn)
+    r"\b(?:foreign|foriegn|foren)\s+(?:education|eucation|study|studies|scholarship|university|college|school|scheme|loan|degree|job|work|country|land|nation|government)\b",
+    r"\b(?:education|eucation|study|studies|scholarship|loan|scheme|degree)\s+(?:in|for|at|to)?\s*(?:foreign|foriegn|foren)\b",
+
+    # Outside India / International
+    r"\b(?:outside\s+india|out\s+of\s+india|non-?indian\s+(?:university|college|school|government))\b",
+    r"\b(?:international\s+(?:university|college|school)\s+(?:scholarship|scheme|grant|loan|admission))\b",
+
+    # Foreign study/work destinations and degrees in foreign countries
+    r"\b(?:study|studying|work(?:ing)?|live|living|settle|settling|migrate|migrating)\s+(?:in|to|at)\s+(?:usa|uk|us|uae|australia|canada|germany|france|japan|china|singapore|new\s+zealand|south\s+korea|italy|spain|netherlands|sweden|norway|denmark|switzerland|russia|brazil|mexico|south\s+africa|europe|united\s+states|united\s+kingdom|foreign\s+country|another\s+country|other\s+country)\b",
+    r"\b(?:scholarship|education\s+loan|grant|scheme|fellowship|financial\s+aid)\s+(?:for\s+[\w\s]{1,25}\s+)?(?:in|at|to)\s+(?:usa|uk|us|uae|australia|canada|germany|france|japan|china|singapore|new\s+zealand|south\s+korea|italy|spain|netherlands|sweden|norway|denmark|switzerland|russia|brazil|mexico|south\s+africa|europe|united\s+states|united\s+kingdom)\b",
+    r"\b(?:masters|bachelors|ms|mba|phd|degree|higher\s+studies)\s+(?:in|from|at)\s+(?:usa|uk|us|uae|australia|canada|germany|france|japan|china|singapore|new\s+zealand|south\s+korea|italy|spain|netherlands|sweden|norway|denmark|switzerland|europe|united\s+states|united\s+kingdom)\b",
+
+    # Named foreign countries / regions — with government/study/scheme terms
+    r"\b(?:united\s+states|united\s+kingdom|australia|canada|germany|france|japan|singapore|new\s+zealand|south\s+korea|italy|netherlands|sweden|norway|denmark|switzerland)\s+(?:government|university|college|school|scheme|grant|scholarship|visa|loan|education|study|student)\b",
+    r"\b(?:government|university|college|scheme|grant|scholarship|visa|loan|education|study|student)\s+(?:in|at|of|from)\s+(?:united\s+states|united\s+kingdom|australia|canada|germany|france|japan|singapore|new\s+zealand|south\s+korea|italy|netherlands|sweden|norway|denmark|switzerland|usa|uk|uae)\b",
+
+    # Named foreign universities/institutions — standalone triggers
+    r"\b(?:harvard|mit|stanford|oxford|cambridge|yale|princeton|columbia|cornell|lse|imperial\s+college|nus|ntu\s+singapore|university\s+of\s+toronto|mcgill|university\s+of\s+melbourne|university\s+of\s+sydney|university\s+of\s+auckland|uc\s+berkeley|caltech)\b",
+
+    # Named foreign scholarship programs — standalone triggers
+    r"\b(?:chevening|commonwealth\s+scholarship|fulbright|daad|erasmus|gates\s+cambridge|rhodes\s+scholarship|rotary\s+scholarship|aga\s+khan\s+scholarship|inlaks|mext|korea\s+gks|australia\s+awards|canada\s+scholarship)\b",
+
+    # Immigration, visa-abroad, work-abroad topics
+    r"\b(?:work\s+(?:permit|visa)\s*(?:in|for|to)?\s*(?:uk|usa|canada|australia|germany|europe|abroad|overseas)?)\b",
+    r"\b(?:immigration|emigrate|emigration|pr\s+(?:visa|card)|permanent\s+residency\s+(?:in|of|for)|green\s+card|greencard|h1b|tier\s*[1-5]\s*visa|schengen\s+visa)\b",
+    r"\b(?:student\s+visa\s+(?:for|to|in)\s*(?:uk|usa|canada|australia|germany|europe|abroad|overseas)?)\b",
+
+    # Explicitly non-Indian government
+    r"\b(?:us\s+government|uk\s+government|australian\s+government|canadian\s+government|eu\s+(?:scheme|grant|fund)|world\s+bank\s+grant|un\s+(?:scholarship|grant|fellowship))\b",
+]
 
 # Regex patterns for negative out-of-domain queries
 OUT_OF_DOMAIN_PATTERNS = [
@@ -298,7 +340,13 @@ def check_domain_guard(
 
     lower_query = cleaned.casefold()
 
-    # 6. Check for explicit out-of-domain patterns (coding, sports, cinema, homework, etc.)
+    # 6. GEOGRAPHIC SCOPE CHECK — evaluated BEFORE has_scheme_terms override.
+    # Blocks foreign/abroad queries even when welfare words like "scheme", "scholarship" appear.
+    for pat in GEOGRAPHIC_OOD_PATTERNS:
+        if re.search(pat, lower_query, re.IGNORECASE):
+            return "OUT_OF_DOMAIN", generate_geographic_ood_refusal(cleaned)
+
+    # 7. Check for explicit out-of-domain patterns (coding, sports, cinema, homework, etc.)
     matched_ood = False
     for pat in OUT_OF_DOMAIN_PATTERNS:
         if re.search(pat, lower_query):
@@ -341,6 +389,34 @@ def check_domain_guard(
 # =========================================================================
 # REFUSAL & GUIDANCE GENERATORS
 # =========================================================================
+
+def generate_geographic_ood_refusal(user_query: str) -> str:
+    """
+    Returns a clear, helpful refusal for queries about foreign/overseas/non-India
+    schemes, scholarships, universities, visas, or international programs.
+    """
+    escaped_query = user_query[:120].replace("*", "\\*").replace("`", "\\`")
+    return (
+        "🌐 **Geographic Scope Notice — India-Only Platform**\n\n"
+        f"Your question (*\"{escaped_query}\"*) appears to be about **foreign countries, overseas education, "
+        "international scholarships, or non-Indian government programs**.\n\n"
+        "**JanSahayak (myScheme) covers only official Indian Government schemes** — Central Government "
+        "and all 36 State/UT government welfare programs for Indian citizens residing in India.\n\n"
+        "---\n"
+        "### 🇮🇳 What I Can Help With (India-only schemes):\n"
+        "- 🎓 **Education Loans & Scholarships in India:** Central Sector Scholarship, PM-USP, "
+        "National Means-Cum-Merit Scholarship (NMMS), Dr. Ambedkar Post-Matric Scholarship\n"
+        "- 🏦 **Education Loans:** Vidya Lakshmi Portal (subsidised loans from PSU banks for Indian institutions)\n"
+        "- 💼 **Skill Development:** PM Kaushal Vikas Yojana (PMKVY) for training in India\n"
+        "- 🌾 **Agriculture, Housing, Health, Business** schemes funded by GoI\n\n"
+        "---\n"
+        "### 🔎 For Foreign Scholarships / Abroad Education, visit:\n"
+        "- **Education Loans Abroad:** Indian banks (SBI, Bank of Baroda) offer forex education loans — ask your bank directly\n"
+        "- **Fulbright, Chevening, DAAD, Erasmus** — apply via their official websites\n"
+        "- **Study in India portal:** [https://www.studyinindia.gov.in](https://www.studyinindia.gov.in)\n\n"
+        "Please ask about an **Indian government welfare scheme** and I'll be happy to help!"
+    )
+
 
 def generate_flooding_refusal(reason: str) -> str:
     """Returns official notice when input is blocked due to flooding, repetition, or spam."""

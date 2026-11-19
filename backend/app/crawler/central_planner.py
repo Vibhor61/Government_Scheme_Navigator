@@ -57,6 +57,7 @@ class CentralAgentPlanner:
         user_clarification: Optional[str] = None,
         user_profile: Optional[Dict[str, Any]] = None,
         conversation_history: Optional[List[Dict[str, Any]]] = None,
+        language: Optional[str] = "auto",
     ) -> Dict[str, Any]:
         """
         Executes the 5-step agentic orchestration cycle.
@@ -74,7 +75,7 @@ class CentralAgentPlanner:
             user_profile=user_profile,
         )
 
-        if guard_status in ("FLOODING_SPAM", "SECURITY_BLOCKED", "PROMPT_INJECTION"):
+        if guard_status in ("FLOODING_SPAM", "SECURITY_BLOCKED", "PROMPT_INJECTION", "OUT_OF_DOMAIN"):
             lat = round((time.time() - started) * 1000, 2)
             trace.append({
                 "step": 0,
@@ -87,7 +88,11 @@ class CentralAgentPlanner:
             return {
                 "query": user_query,
                 "answer": guard_message or "Input stopped by security filter.",
-                "key_takeaways": [f"Input was blocked by {guard_status} guardrail."],
+                "key_takeaways": [
+                    "Query lies outside the scope of Indian Government welfare schemes."
+                    if guard_status == "OUT_OF_DOMAIN"
+                    else f"Input was blocked by {guard_status} guardrail."
+                ],
                 "eligibility_checklist": [],
                 "eligibility_matrix": [],
                 "eligibility_status": guard_status.lower(),
@@ -116,8 +121,21 @@ class CentralAgentPlanner:
             user_query=user_query,
             conversation_history=conversation_history,
             user_profile=user_profile,
+            preferred_language=language,
         )
         t1_lat = round((time.time() - t1_start) * 1000, 2)
+
+        from .router import LANGUAGE_NAMES
+        detected_lang = router_res.get("detected_language") or "en"
+        detected_name = router_res.get("language_name") or "English"
+        script_type = router_res.get("script_type") or "latin"
+
+        if language and language != "auto" and language in LANGUAGE_NAMES:
+            target_lang = language
+            target_lang_name = LANGUAGE_NAMES[language]
+        else:
+            target_lang = detected_lang
+            target_lang_name = detected_name
 
         # Check for Out-of-Domain via Router LLM
         if router_res.get("is_out_of_domain"):
@@ -157,19 +175,42 @@ class CentralAgentPlanner:
 
         # Check for pure greeting
         if router_res.get("workflow") == "GREETING":
+            if target_lang == "kn":
+                greet_ans = (
+                    "🙏 **ನಮಸ್ಕಾರ! ನಾನು ಜನಸಹಾಯಕ AI (JanSahayak AI) - ಭಾರತ ಸರ್ಕಾರದ ಅಧಿಕೃತ ಯೋಜನೆಗಳ ಮಾರ್ಗದರ್ಶಿ ಸಹಾಯಕ.**\n\n"
+                    "ನಾನು ನಿಮಗೆ ಕೇಂದ್ರ ಮತ್ತು ರಾಜ್ಯ ಸರ್ಕಾರಗಳ ಅಧಿಕೃತ ಯೋಜನೆಗಳು, ಕೃಷಿ ಸಹಾಯಧನ, ವಿದ್ಯಾರ್ಥಿವೇತನ ಮತ್ತು ಸಾಲಗಳ ಬಗ್ಗೆ ಅಧಿಕೃತ ಮಾಹಿತಿಯನ್ನು ಒದಗಿಸುತ್ತೇನೆ.\n\n"
+                    "**ನೀವು ಯಾವುದರ ಬಗ್ಗೆ ತಿಳಿಯಲು ಬಯಸುತ್ತೀರಿ?**\n"
+                    "- 🌾 ಕೃಷಿ ಮತ್ತು ರೈತ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳು (PM-KISAN, KCC, ಕೃಷಿ ಯಂತ್ರೋಪಕರಣಗಳು)\n"
+                    "- 🎓 ವಿದ್ಯಾರ್ಥಿವೇತನ ಮತ್ತು ಶಿಕ್ಷಣ ನೆರವು (ರೈತ ವಿದ್ಯಾನಿಧಿ, ಮೆಟ್ರಿಕ್ ನಂತರದ ಸ್ಕಾಲರ್‌ಶಿಪ್)\n"
+                    "- 💼 ವ್ಯಾಪಾರ ಸಾಲಗಳು ಮತ್ತು ಮುದ್ರಾ ಯೋಜನೆ (Mudra, PMEGP)\n"
+                    "- 🏥 ಆಯುಷ್ಮಾನ್ ಭಾರತ್ ಮತ್ತು ಆರೋಗ್ಯ ವಿಮೆ"
+                )
+            elif target_lang in ("hi", "mr"):
+                greet_ans = (
+                    "🙏 **नमस्ते! मैं जनसहायक AI (JanSahayak AI) हूँ - भारत सरकार की योजनाओं का आधिकारिक सहायक।**\n\n"
+                    "मैं myScheme राष्ट्रीय रिपॉजिटरी से सत्यापित योजनाओं, सब्सिडी, छात्रवृत्ति और ऋणों की सही जानकारी प्रदान करता हूँ।\n\n"
+                    "**आप किस प्रकार की योजना की तलाश कर रहे हैं?**\n"
+                    "- 🌾 कृषि एवं किसान कल्याण (PM-KISAN, KCC, कृषि यंत्र सब्सिडी)\n"
+                    "- 🎓 छात्रवृत्ति एवं शिक्षा सहायता (Post-Matric, National Scholarship)\n"
+                    "- 💼 व्यवसाय ऋण (Mudra, PMEGP)\n"
+                    "- 🏥 स्वास्थ्य एवं चिकित्सा सहायता (Ayushman Bharat)"
+                )
+            else:
+                greet_ans = generate_greeting_response()
+
             trace.append({
                 "step": 1,
                 "type": "ROUTER",
                 "tool_name": self.router.name,
-                "title": "Stage 1: Welcome & Orientation",
-                "observation": "Greeting query handled with official introductory overview.",
+                "title": f"Stage 1: Welcome & Orientation ({target_lang_name})",
+                "observation": f"Greeting handled in {target_lang_name} [{target_lang}].",
                 "status": "GREETING",
                 "latency_ms": t1_lat,
             })
             return {
                 "query": user_query,
-                "answer": generate_greeting_response(),
-                "key_takeaways": ["Welcome to the official myScheme Indian Government Welfare Assistant."],
+                "answer": greet_ans,
+                "key_takeaways": [f"Welcome to the official myScheme Indian Government Welfare Assistant ({target_lang_name})."],
                 "eligibility_checklist": [],
                 "eligibility_matrix": [],
                 "eligibility_status": "greeting",
@@ -188,6 +229,8 @@ class CentralAgentPlanner:
                     "security_whitelist_passed": True,
                     "guard_status": "GREETING",
                 },
+                "detected_language": target_lang,
+                "language_name": target_lang_name,
             }
 
         beneficiary = router_res.get("beneficiary", {})
@@ -237,14 +280,16 @@ class CentralAgentPlanner:
         if is_questionnaire_submission and history_schemes and not target_schemes:
             target_schemes = [s["name"] for s in history_schemes]
 
+        spec_queries = router_res.get("search_specification", {}).get("search_queries") or search_terms
         trace.append({
             "step": 1,
             "type": "ROUTER",
             "tool_name": self.router.name,
-            "title": f"Stage 1: Intent Routing ({workflow})",
+            "title": f"Stage 1: Intent & Cross-Lingual Routing ({target_lang_name} [{target_lang}])",
             "observation": (
-                f"Workflow: {workflow}. Beneficiary: {beneficiary.get('target_description', 'self')} "
-                f"({'self' if beneficiary.get('is_self', True) else 'on behalf of family'}). "
+                f"Workflow: {workflow}. Language: {target_lang_name} ({script_type}). "
+                f"English search queries: {spec_queries[:2]}. "
+                f"Beneficiary: {beneficiary.get('target_description', 'self')}. "
                 f"Criteria extracted: {list(extracted_criteria.keys())}."
             ),
             "status": "COMPLETED",
@@ -390,6 +435,8 @@ class CentralAgentPlanner:
             known_criteria=merged_profile,
             evaluated_schemes=evaluated,
             is_evaluation_turn=is_questionnaire_submission,
+            target_language=target_lang,
+            language_name=target_lang_name,
         )
         t4_lat = round((time.time() - t4_start) * 1000, 2)
 
@@ -474,6 +521,8 @@ class CentralAgentPlanner:
                 "eligibility_evaluated": len(questions) == 0,
                 "workflow_stage": workflow,
             },
+            "detected_language": target_lang,
+            "language_name": target_lang_name,
         }
 
 

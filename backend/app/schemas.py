@@ -8,6 +8,7 @@ class AgentQueryRequest(BaseModel):
     user_clarification: Optional[str] = Field(None, description="User response providing State/UT or scheme-specific profile details")
     user_profile: Optional[Dict[str, Any]] = Field(None, description="Explicit profile answers used only for supported, source-quoted criteria")
     conversation_history: Optional[List[Dict[str, Any]]] = Field(None, description="Previous conversation turns for multi-turn dialogue")
+    language: Optional[str] = Field("auto", description="Preferred language code ('auto', 'en', 'hi', 'kn', 'bn', 'mr', 'ta', 'te', 'gu')")
 
 class AgentQueryResponse(BaseModel):
     query: str
@@ -29,6 +30,8 @@ class AgentQueryResponse(BaseModel):
     crawler_metrics: Dict[str, Any]
     welfare_stack: Optional[Dict[str, Any]] = None
     cross_scheme_conflicts: List[Dict[str, Any]] = []
+    detected_language: Optional[str] = "en"
+    language_name: Optional[str] = "English"
 
 class CrawlUrlRequest(BaseModel):
     url: str = Field(..., description="URL of an authentic Indian Government portal (*.gov.in / *.nic.in)")

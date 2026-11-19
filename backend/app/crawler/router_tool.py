@@ -32,13 +32,15 @@ class RouterTool:
         user_query: str,
         conversation_history: Optional[List[Dict[str, Any]]] = None,
         user_profile: Optional[Dict[str, Any]] = None,
+        preferred_language: Optional[str] = "auto",
     ) -> Dict[str, Any]:
         """Executes Stage 2 routing on citizen query."""
-        logger.info("Executing RouterTool for query: '%s'", (user_query or "")[:60])
+        logger.info("Executing RouterTool for query: '%s' (lang: %s)", (user_query or "")[:60], preferred_language)
         return self.router.route(
             user_query=user_query,
             conversation_history=conversation_history,
             user_profile=user_profile,
+            preferred_language=preferred_language,
         )
 
     def run(self, **kwargs) -> Dict[str, Any]:

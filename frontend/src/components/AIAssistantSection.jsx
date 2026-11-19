@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Send,
   Mic,
   MicOff,
   Volume2,
   VolumeX,
+  Pause,
+  Play,
   Copy,
   Check,
   Sparkles,
   User,
   ArrowUp,
   RefreshCw,
-  ShieldCheck,
   CheckCircle2,
-  AlertCircle
+  Headphones,
 } from 'lucide-react';
 import { queryCrawlerAgent } from '../services/api';
 import EmptyState from './EmptyState';
@@ -24,11 +24,14 @@ import EligibilityEvaluationCard from './EligibilityEvaluationCard';
 import SchemeBentoCard from './SchemeBentoCard';
 import WelfareStackCard from './WelfareStackCard';
 import CrossSchemeConflictAlert from './CrossSchemeConflictAlert';
+import VoicePopup from './VoicePopup';
+import useVoice from '../hooks/useVoice';
 
 export default function AIAssistantSection({
   initialQuery = '',
   initialProfile = null,
   language = 'en',
+  onLanguageChange,
   onSaveScheme,
   savedSchemes = [],
   onUpdateConversationTitle,
@@ -41,40 +44,69 @@ export default function AIAssistantSection({
   const [messages, setMessages] = useState(initialMessages);
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [speakingId, setSpeakingId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [userProfile, setUserProfile] = useState(initialProfile || {});
+  const [isVoicePopupOpen, setIsVoicePopupOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const textareaRef = useRef(null);
-  const recognitionRef = useRef(null);
 
+  // ── Voice hook ─────────────────────────────────────────────────────────
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    speechSupported,
+    micError,
+    toggleListening,
+    clearTranscript,
+    speakingId,
+    isPaused,
+    ttsSupported,
+    autoRead,
+    toggleAutoRead,
+    speak,
+    stopSpeaking,
+    autoSpeak,
+  } = useVoice(language);
+
+  // Auto-read the latest assistant message when it arrives
+  const prevMsgCountRef = useRef(initialMessages.length);
+  useEffect(() => {
+    if (messages.length > prevMsgCountRef.current) {
+      const latest = messages[messages.length - 1];
+      if (latest?.role === 'assistant' && latest.content) {
+        autoSpeak(latest.id, latest.content, latest.data?.detected_language);
+      }
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages, autoSpeak]);
+
+  // ── Persist conversation ───────────────────────────────────────────────
   useEffect(() => {
     if (messages.length > 0) {
       onUpdateConversation?.(conversationId, messages, userProfile);
     }
   }, [conversationId, messages, onUpdateConversation, userProfile]);
 
-  // Auto-scroll to bottom of conversation
+  // ── Auto-scroll ────────────────────────────────────────────────────────
   useEffect(() => {
     if (messages.length === 0) {
       scrollContainerRef.current?.scrollTo({ top: 0 });
       return;
     }
-
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Handle incoming initialQuery
+  // ── Handle initial query ───────────────────────────────────────────────
   useEffect(() => {
     if (initialQuery && initialQuery.trim()) {
       handleSend(initialQuery);
     }
   }, [initialQuery]);
 
-  // Adjust textarea height dynamically
+  // ── Textarea auto-height ───────────────────────────────────────────────
   const handleTextareaInput = (e) => {
     setInputQuery(e.target.value);
     if (textareaRef.current) {
@@ -83,76 +115,45 @@ export default function AIAssistantSection({
     }
   };
 
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = isHindi ? 'hi-IN' : 'en-IN';
+  // ── Voice popup handlers ──────────────────────────────────────────────
+  const handleOpenVoicePopup = () => {
+    clearTranscript();
+    setIsVoicePopupOpen(true);
+  };
 
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onerror = () => setIsListening(false);
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          setInputQuery(transcript);
-        }
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [isHindi]);
-
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      alert(isHindi ? 'आपका ब्राउज़र वाक् पहचान का समर्थन नहीं करता।' : 'Speech recognition is not supported in this browser.');
-      return;
-    }
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      try {
-        recognitionRef.current.lang = isHindi ? 'hi-IN' : 'en-IN';
-        recognitionRef.current.start();
-      } catch (err) {
-        console.error("Speech recognition start failed:", err);
-      }
+  const handleVoiceConfirm = (text) => {
+    if (text.trim()) {
+      setInputQuery(text.trim());
+      setIsVoicePopupOpen(false);
+      clearTranscript();
+      // Auto-send after voice input
+      setTimeout(() => handleSend(text.trim()), 50);
     }
   };
 
-  // Text to Speech
-  const toggleSpeech = (msgId, text) => {
-    if (!('speechSynthesis' in window)) return;
+  const handleVoiceRetry = () => {
+    clearTranscript();
+    // If currently listening, stop first; next tap will restart
+    if (isListening) toggleListening();
+  };
 
+  // ── TTS toggle per message ────────────────────────────────────────────
+  const handleToggleSpeech = (msgId, text, msgLang) => {
     if (speakingId === msgId) {
-      window.speechSynthesis.cancel();
-      setSpeakingId(null);
-      return;
+      stopSpeaking();
+    } else {
+      speak(msgId, text, msgLang);
     }
-
-    window.speechSynthesis.cancel();
-    const cleanText = text.replace(/[*_#`[\]()]/g, '').slice(0, 400);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = isHindi ? 'hi-IN' : 'en-IN';
-    utterance.rate = 1.0;
-    utterance.onend = () => setSpeakingId(null);
-    utterance.onerror = () => setSpeakingId(null);
-
-    setSpeakingId(msgId);
-    window.speechSynthesis.speak(utterance);
   };
 
-  // Copy message text
+  // ── Copy text ─────────────────────────────────────────────────────────
   const handleCopyText = (msgId, text) => {
     navigator.clipboard.writeText(text);
     setCopiedId(msgId);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Send citizen message to Central Planner
+  // ── Send message ──────────────────────────────────────────────────────
   const handleSend = async (textToSend = inputQuery, clarificationOption = null, additionalProfile = null) => {
     const rawText = typeof textToSend === 'string' ? textToSend.trim() : '';
     const q = rawText || (typeof inputQuery === 'string' ? inputQuery.trim() : '') || (clarificationOption ? String(clarificationOption).trim() : '');
@@ -160,11 +161,8 @@ export default function AIAssistantSection({
 
     const userMessageText = clarificationOption ? String(clarificationOption) : q;
     const updatedProfile = { ...userProfile, ...(additionalProfile || {}) };
-    if (additionalProfile) {
-      setUserProfile(updatedProfile);
-    }
+    if (additionalProfile) setUserProfile(updatedProfile);
 
-    // Set conversation title if it's the first message
     if (messages.length === 0 && onUpdateConversationTitle) {
       const title = userMessageText.length > 32 ? `${userMessageText.slice(0, 32)}...` : userMessageText;
       onUpdateConversationTitle(conversationId, title);
@@ -179,25 +177,21 @@ export default function AIAssistantSection({
 
     setMessages((prev) => [...prev, newUserMsg]);
     setInputQuery('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsLoading(true);
 
     try {
       const conversationHistory = messages
         .slice(-6)
-        .map((m) => ({
-          role: m.role,
-          content: m.content
-        }));
+        .map((m) => ({ role: m.role, content: m.content }));
 
       const response = await queryCrawlerAgent(
         q || userMessageText,
         false,
         clarificationOption,
         conversationHistory,
-        updatedProfile
+        updatedProfile,
+        language
       );
 
       const newAssistantMsg = {
@@ -210,7 +204,7 @@ export default function AIAssistantSection({
 
       setMessages((prev) => [...prev, newAssistantMsg]);
     } catch (err) {
-      console.error("JanSahayak Assistant query failed:", err);
+      console.error('JanSahayak Assistant query failed:', err);
       setMessages((prev) => [
         ...prev,
         {
@@ -232,8 +226,37 @@ export default function AIAssistantSection({
     return savedSchemes.some(s => (s.name || s.scheme_name) === sName);
   };
 
+  // ── Placeholder text by language ──────────────────────────────────────
+  const placeholderText = {
+    kn: 'ನಿಮ್ಮ ಅಗತ್ಯತೆ ಅಥವಾ ಯೋಜನೆಯ ಹೆಸರು ಕೇಳಿ...',
+    hi: 'अपनी स्थिति या योजना का नाम पूछें...',
+    bn: 'আপনার প্রয়োজন বা যোজনার নাম জিজ্ঞেস করুন...',
+    ta: 'உங்கள் தேவை அல்லது திட்டத்தின் பெயரைக் கேளுங்கள்...',
+    te: 'మీ అవసరం లేదా పథకం పేరు అడగండి...',
+    mr: 'तुमची गरज किंवा योजनेचे नाव विचारा...',
+    gu: 'તમારી જરૂરિયાત અથવા યોજનાનું નામ પૂછો...',
+    en: 'Ask about your situation or scheme (e.g., B.Tech scholarship, farmer income, solar panels)...',
+  }[language] || 'Ask about a government scheme...';
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sand-50 dark:bg-[#0B130F] transition-colors duration-200">
+
+      {/* Voice Input Popup */}
+      <VoicePopup
+        isOpen={isVoicePopupOpen}
+        onClose={() => { setIsVoicePopupOpen(false); if (isListening) toggleListening(); }}
+        language={language}
+        onLanguageChange={onLanguageChange}
+        isListening={isListening}
+        transcript={transcript}
+        interimTranscript={interimTranscript}
+        micError={micError}
+        speechSupported={speechSupported}
+        onToggleListening={toggleListening}
+        onRetry={handleVoiceRetry}
+        onConfirm={handleVoiceConfirm}
+      />
+
       {/* Scrollable Conversation Stream */}
       <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         {messages.length === 0 ? (
@@ -246,6 +269,7 @@ export default function AIAssistantSection({
             {messages.map((msg) => {
               const isUser = msg.role === 'user';
               const data = msg.data;
+              const isSpeaking = speakingId === msg.id;
 
               return (
                 <div
@@ -259,15 +283,15 @@ export default function AIAssistantSection({
                     </div>
                   )}
 
-                  {/* Message Body Container */}
+                  {/* Message Body */}
                   <div
                     className={`max-w-2xl ${
                       isUser
                         ? 'rounded-2xl rounded-tr-xs bg-forest-600 dark:bg-emerald-700 px-4 py-3 text-sm text-white shadow-subtle'
-                        : 'w-full rounded-2xl rounded-tl-xs border border-border bg-white dark:border-charcoal-800 dark:bg-[#111A15] p-4 sm:p-5 shadow-subtle'
+                        : `w-full rounded-2xl rounded-tl-xs border border-border bg-white dark:border-charcoal-800 dark:bg-[#111A15] p-4 sm:p-5 shadow-subtle transition-all ${isSpeaking ? 'ring-2 ring-forest-400 dark:ring-emerald-500' : ''}`
                     }`}
                   >
-                    {/* Assistant Header Actions */}
+                    {/* Assistant Header */}
                     {!isUser && (
                       <div className="mb-3 flex items-center justify-between border-b border-border/60 pb-2 dark:border-charcoal-800/80">
                         <div className="flex items-center gap-2">
@@ -277,29 +301,44 @@ export default function AIAssistantSection({
                           <span className="rounded bg-forest-50 px-1.5 py-0.5 text-[10px] font-semibold text-forest-700 border border-forest-100 dark:border-forest-900/60 dark:bg-forest-950/60 dark:text-emerald-300">
                             {isHindi ? 'सत्यापित उत्तर' : 'Evidence Grounded'}
                           </span>
+                          {/* Speaking indicator badge */}
+                          {isSpeaking && (
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 animate-pulse">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              {isHindi ? 'पढ़ रहे हैं' : 'Reading'}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1">
-                          {/* Audio TTS Button */}
-                          <button
-                            type="button"
-                            onClick={() => toggleSpeech(msg.id, msg.content)}
-                            className="rounded p-1 text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-700 transition dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100"
-                            title={speakingId === msg.id ? "Stop voice reading" : "Read aloud"}
-                          >
-                            {speakingId === msg.id ? (
-                              <VolumeX className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
-                            ) : (
-                              <Volume2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                          {/* Read Aloud / TTS Button */}
+                          {ttsSupported && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSpeech(msg.id, msg.content, msg.data?.detected_language)}
+                              className={`rounded p-1.5 transition ${
+                                isSpeaking
+                                  ? 'bg-forest-100 text-forest-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                  : 'text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-700 dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100'
+                              }`}
+                              title={isSpeaking ? (isHindi ? 'रोकें' : 'Stop reading') : (isHindi ? 'ज़ोर से पढ़ें' : 'Read aloud')}
+                              aria-label={isSpeaking ? 'Stop reading' : 'Read aloud'}
+                            >
+                              {isSpeaking ? (
+                                <VolumeX className="h-3.5 w-3.5" />
+                              ) : (
+                                <Volume2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
 
                           {/* Copy Button */}
                           <button
                             type="button"
                             onClick={() => handleCopyText(msg.id, msg.content)}
-                            className="rounded p-1 text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-700 transition dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100"
-                            title="Copy response"
+                            className="rounded p-1.5 text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-700 transition dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100"
+                            title={isHindi ? 'कॉपी करें' : 'Copy response'}
+                            aria-label="Copy response"
                           >
                             {copiedId === msg.id ? (
                               <Check className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
@@ -311,7 +350,7 @@ export default function AIAssistantSection({
                       </div>
                     )}
 
-                    {/* Perplexity-style Sources Citations */}
+                    {/* Sources */}
                     {!isUser && data && data.crawled_sources && data.crawled_sources.length > 0 && (
                       <SourceCitations sources={data.crawled_sources} isHindi={isHindi} />
                     )}
@@ -325,7 +364,7 @@ export default function AIAssistantSection({
                       </div>
                     )}
 
-                    {/* Key Takeaways Callout if provided */}
+                    {/* Key Takeaways */}
                     {!isUser && data && data.key_takeaways && data.key_takeaways.length > 0 && (
                       <div className="mt-4 rounded-xl border border-forest-100 bg-forest-50/60 p-3 text-xs dark:border-forest-900/60 dark:bg-forest-950/40">
                         <p className="font-bold text-forest-900 dark:text-emerald-300 mb-1 flex items-center gap-1.5">
@@ -340,17 +379,14 @@ export default function AIAssistantSection({
                       </div>
                     )}
 
-                    {/* Full Scheme Eligibility Evaluation Card */}
+                    {/* Eligibility Evaluation Card */}
                     {!isUser && data && data.eligibility_matrix && data.eligibility_matrix.some(s => (s.eligibility_matrix && s.eligibility_matrix.length > 0) || s.eligibility_status) && (
                       <div className="mt-4">
-                        <EligibilityEvaluationCard
-                          schemes={data.eligibility_matrix}
-                          isHindi={isHindi}
-                        />
+                        <EligibilityEvaluationCard schemes={data.eligibility_matrix} isHindi={isHindi} />
                       </div>
                     )}
 
-                    {/* Dynamic Questionnaire Card (LLM Generated Questions) */}
+                    {/* Dynamic Questionnaire */}
                     {!isUser && data && data.profiler_questions && data.profiler_questions.length > 0 && (
                       <DynamicQuestionnaireCard
                         questions={data.profiler_questions}
@@ -369,7 +405,7 @@ export default function AIAssistantSection({
                       />
                     )}
 
-                    {/* Cross-Scheme Policy Conflict Warning */}
+                    {/* Cross-Scheme Conflict Alert */}
                     {!isUser && data && data.conflict_alert && (
                       <div className="mt-4">
                         <CrossSchemeConflictAlert
@@ -381,17 +417,14 @@ export default function AIAssistantSection({
                       </div>
                     )}
 
-                    {/* Synergistic Welfare Stacking Card */}
+                    {/* Welfare Stack Card */}
                     {!isUser && data && data.welfare_stack && (
                       <div className="mt-4">
-                        <WelfareStackCard
-                          stack={data.welfare_stack}
-                          isHindi={isHindi}
-                        />
+                        <WelfareStackCard stack={data.welfare_stack} isHindi={isHindi} />
                       </div>
                     )}
 
-                    {/* Discovered Scheme Bento Cards */}
+                    {/* Scheme Bento Cards */}
                     {!isUser && data && data.extracted_schemes && data.extracted_schemes.length > 0 && (
                       <div className="mt-5 space-y-3">
                         <div className="flex items-center justify-between">
@@ -402,7 +435,6 @@ export default function AIAssistantSection({
                             {data.extracted_schemes.length} {isHindi ? 'योजनाएं मिलीं' : 'Schemes found'}
                           </span>
                         </div>
-
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {data.extracted_schemes.map((scheme, sIdx) => (
                             <SchemeBentoCard
@@ -436,7 +468,7 @@ export default function AIAssistantSection({
               );
             })}
 
-            {/* Assistant Thinking/Loading Bubble */}
+            {/* Thinking / Loading Bubble */}
             {isLoading && (
               <div className="flex gap-3 sm:gap-4 items-start">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-forest-600 dark:bg-emerald-700 text-white shadow-2xs mt-1">
@@ -458,9 +490,49 @@ export default function AIAssistantSection({
         )}
       </div>
 
-      {/* Floating Bottom Input Area */}
+      {/* ── Bottom Input Bar ─────────────────────────────────────────────── */}
       <div className="border-t border-border bg-sand-50/95 px-4 py-3 sm:px-6 dark:border-charcoal-800 dark:bg-[#0E1712]">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-5xl space-y-2">
+
+          {/* Auto-read toggle strip */}
+          {ttsSupported && (
+            <div className="flex items-center justify-between px-1">
+              <button
+                type="button"
+                onClick={toggleAutoRead}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                  autoRead
+                    ? 'bg-forest-100 text-forest-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : 'text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-600 dark:text-charcoal-500 dark:hover:bg-charcoal-800 dark:hover:text-charcoal-300'
+                }`}
+                title={autoRead
+                  ? (isHindi ? 'स्वतः पढ़ना बंद करें' : 'Disable auto read-aloud')
+                  : (isHindi ? 'स्वतः पढ़ना चालू करें' : 'Enable auto read-aloud')}
+                aria-pressed={autoRead}
+              >
+                <Headphones className="h-3.5 w-3.5" />
+                <span>
+                  {autoRead
+                    ? (isHindi ? 'स्वतः पढ़ना: चालू' : 'Auto read-aloud: On')
+                    : (isHindi ? 'स्वतः पढ़ना' : 'Auto read-aloud')}
+                </span>
+              </button>
+
+              {/* Stop speaking button (when active) */}
+              {speakingId && (
+                <button
+                  type="button"
+                  onClick={stopSpeaking}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40 transition animate-pulse"
+                >
+                  <VolumeX className="h-3.5 w-3.5" />
+                  {isHindi ? 'रोकें' : 'Stop reading'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Input Form */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -480,26 +552,24 @@ export default function AIAssistantSection({
                   handleSend();
                 }
               }}
-              placeholder={
-                isHindi
-                  ? 'अपनी स्थिति या योजना का नाम पूछें (उदा. बीटेक छात्रवृत्ति, किसान आय सहायता, सोलर पैनल)...'
-                  : "Ask about your situation or scheme (e.g., B.Tech scholarship, farmer income, rooftop solar)..."
-              }
+              placeholder={placeholderText}
               className="max-h-44 min-h-[48px] w-full resize-none bg-transparent px-3 py-2 text-sm text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none dark:text-sand-50 dark:placeholder:text-charcoal-500"
+              aria-label={isHindi ? 'अपना प्रश्न लिखें' : 'Type your question'}
             />
 
             {/* Actions: Voice & Send */}
             <div className="flex items-center gap-1.5 shrink-0 pb-1 pr-1">
-              {/* Mic Dictation */}
+              {/* Voice Input Button → opens popup */}
               <button
                 type="button"
-                onClick={toggleListening}
+                onClick={handleOpenVoicePopup}
                 className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
                   isListening
                     ? 'bg-red-500 text-white animate-pulse'
                     : 'text-charcoal-400 hover:bg-sand-200 hover:text-charcoal-700 dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100'
                 }`}
-                title={isListening ? "Stop listening" : "Speak your query"}
+                title={isHindi ? 'आवाज़ से बोलें' : 'Speak your query'}
+                aria-label={isHindi ? 'आवाज़ से बोलें' : 'Voice input'}
               >
                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </button>
@@ -509,15 +579,16 @@ export default function AIAssistantSection({
                 type="submit"
                 disabled={isLoading || !inputQuery.trim()}
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-600 text-white shadow-2xs transition hover:bg-forest-700 active:scale-95 disabled:opacity-40 disabled:hover:bg-forest-600 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                title="Send message"
+                title={isHindi ? 'भेजें' : 'Send message'}
+                aria-label="Send"
               >
                 <ArrowUp className="h-4 w-4 stroke-[2.5]" />
               </button>
             </div>
           </form>
 
-          {/* Sub-caption Disclaimer */}
-          <p className="mt-2 text-center text-[11px] text-charcoal-400 dark:text-charcoal-500">
+          {/* Disclaimer */}
+          <p className="text-center text-[11px] text-charcoal-400 dark:text-charcoal-500">
             {isHindi
               ? 'जनसहायक आधिकारिक भारत सरकार पोर्टल्स (*.gov.in) से सत्यापित करता है। हमेशा अंतिम सरकारी सर्कुलर अवश्य देखें।'
               : 'JanSahayak verifies eligibility against official Government of India portals (*.gov.in, *.nic.in). Always confirm with official guidelines.'}

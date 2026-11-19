@@ -6,6 +6,7 @@ Adapts freely to the exact conversational stage:
   - Final Stage (criteria complete): Issues grounded verdict, benefits breakdown, required documents, and official links.
   - Comparison: Side-by-side comparative analysis.
   - Procedural: Step-by-step application process walkthrough.
+  - Multilingual: Synthesizes responses natively in citizen's preferred language & script (Kannada, Hindi, Bengali, Tamil, etc.).
 """
 
 import json
@@ -63,6 +64,15 @@ GUIDING PRINCIPLES:
    - Do not invent non-existent benefits or guarantee approvals.
    - Use clean, readable GitHub Markdown with emojis, bullet points, and bold section headers.
 
+3. MULTILINGUAL & VERNACULAR SCRIPT SYNTHESIS:
+   - When Target Language is NOT English (e.g., Kannada 'kn', Hindi 'hi', Bengali 'bn', Marathi 'mr', Tamil 'ta', Telugu 'te', Gujarati 'gu'):
+     * Write the ENTIRE text response ('answer_markdown') and all 'key_takeaways' in authentic regional script (e.g., Kannada script ಕನ್ನಡ for Kannada, Devanagari script देवनागरी for Hindi/Marathi, Bengali script বাংলা, etc.).
+     * Never generate transliterated English/Latin sentences when a regional language is requested (e.g., do not write 'nimma aayushya'; write 'ನಿಮ್ಮ ವಯಸ್ಸು').
+     * PRESERVE OFFICIAL TECHNICAL ENTITIES:
+       - Keep official scheme names identifiable: e.g. in Kannada: "ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (PM-KCC Scheme)" or "ರೈತ ವಿದ್ಯಾನಿಧಿ ಯೋಜನೆ (Raita Vidyanidhi)".
+       - Keep official URLs unchanged: e.g. [myScheme ಅಧಿಕೃತ ಪೋರ್ಟಲ್](https://www.myscheme.gov.in)
+       - Keep Markdown table syntax (|---|) and status icons (✅, ⚠️, ❌) clean and intact.
+
 Respond with JSON:
 {
   "answer_markdown": "Full adaptive Markdown response for the citizen...",
@@ -101,9 +111,11 @@ class ResponseGeneratorTool:
         known_criteria: Optional[Dict[str, Any]] = None,
         evaluated_schemes: Optional[List[Dict[str, Any]]] = None,
         is_evaluation_turn: bool = False,
+        target_language: str = "en",
+        language_name: str = "English",
     ) -> Dict[str, Any]:
         """
-        Executes adaptive free-form response generation.
+        Executes adaptive free-form response generation with cross-lingual synthesis.
         """
         has_questions = bool(questionnaire_status.get("questions"))
         is_eval = is_evaluation_turn or workflow == "ELIGIBILITY_CHECK" or bool(evaluated_schemes and any(s.get("eligibility_matrix") for s in evaluated_schemes))
@@ -176,6 +188,12 @@ Deterministic Eligibility Evaluation Matrix:
 Questionnaire Status:
 {q_status_str}
 
+TARGET CITIZEN LANGUAGE: {language_name} (code: '{target_language}')
+IMPORTANT LANGUAGE INSTRUCTIONS:
+- Generate the entire Markdown response and all key takeaways in authentic {language_name} using native {language_name} script (e.g. Kannada script ಕನ್ನಡ for Kannada, Devanagari script for Hindi/Marathi, Bengali script for Bengali).
+- Maintain an empathetic, culturally respectful, and clear government counselor tone.
+- PRESERVE: Keep official scheme acronyms (e.g. PM-KISAN, Ayushman Bharat, Raita Vidyanidhi), official portal URLs (*.gov.in / *.nic.in), and Markdown table structure intact.
+
 Generate a helpful, empathetic, beautifully structured Markdown response for the citizen."""
 
         result = self.llm._call_groq_json(
@@ -195,6 +213,8 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
             evaluated_schemes=evaluated_schemes,
             is_evaluation_turn=is_eval,
             known_criteria=known_criteria,
+            target_language=target_language,
+            language_name=language_name,
         )
 
     def _fallback_generation(
@@ -205,15 +225,40 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
         evaluated_schemes: Optional[List[Dict[str, Any]]] = None,
         is_evaluation_turn: bool = False,
         known_criteria: Optional[Dict[str, Any]] = None,
+        target_language: str = "en",
+        language_name: str = "English",
     ) -> Dict[str, Any]:
         """Deterministic safety fallback for response synthesis."""
         has_questions = bool(questionnaire_status.get("questions"))
         lines = []
 
+        is_kn = target_language == "kn"
+        is_hi = target_language in ("hi", "mr")
+
+        # Localized header labels
+        if is_kn:
+            title_eval = "## 📋 ಅಧಿಕೃತ ಅರ್ಹತಾ ಮೌಲ್ಯಮಾಪನ ವರದಿ\n"
+            desc_eval = "ನೀವು ಸಲ್ಲಿಸಿದ ಅರ್ಹತಾ ವಿವರಗಳ ಆಧಾರದ ಮೇಲೆ, ಸರ್ಕಾರದ ಮಾರ್ಗಸೂಚಿಗಳ ಪರಿಶೀಲನೆ ಇಲ್ಲಿದೆ:\n"
+            benefit_lbl = "ಸೌಲಭ್ಯ ಮತ್ತು ಸಹಾಯಧನ:"
+            docs_lbl = "ಅಗತ್ಯ ದಾಖಲೆಗಳು:"
+            portal_lbl = "ಅಧಿಕೃತ ಪೋರ್ಟಲ್:"
+        elif is_hi:
+            title_eval = "## 📋 आधिकारिक पात्रता मूल्यांकन रिपोर्ट\n"
+            desc_eval = "आपके द्वारा दिए गए पात्रता विवरण के आधार पर आधिकारिक मूल्यांकन:\n"
+            benefit_lbl = "लाभ एवं वित्तीय सहायता:"
+            docs_lbl = "आवश्यक दस्तावेज:"
+            portal_lbl = "आधिकारिक पोर्टल:"
+        else:
+            title_eval = "## 📋 Official Eligibility Evaluation Report\n"
+            desc_eval = "Based on the eligibility details you submitted, here is your verified evaluation against official government guidelines:\n"
+            benefit_lbl = "Entitlement & Benefit:"
+            docs_lbl = "Required Documents:"
+            portal_lbl = "Official Portal:"
+
         # If this is an eligibility evaluation query, output full evaluation report
         if (is_evaluation_turn or evaluated_schemes) and candidate_schemes:
-            lines.append("## 📋 Official Eligibility Evaluation Report\n")
-            lines.append("Based on the eligibility details you submitted, here is your verified evaluation against official government guidelines:\n")
+            lines.append(title_eval)
+            lines.append(desc_eval)
 
             schemes_to_render = evaluated_schemes if evaluated_schemes else candidate_schemes
             for idx, s in enumerate(schemes_to_render[:4], 1):
@@ -233,7 +278,7 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
 
                 lines.append(f"### {idx}. **{s_name}** ({s_level})")
                 lines.append(f"{verdict_badge}\n")
-                lines.append(f"- **💰 Entitlement & Benefit:** {s_benefit}")
+                lines.append(f"- **💰 {benefit_lbl}** {s_benefit}")
 
                 if rules_matrix:
                     lines.append("\n**Criteria Verification Breakdown:**")
@@ -247,9 +292,9 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
 
                 docs = s.get("documents", [])
                 if docs:
-                    lines.append(f"\n- **📑 Required Documents:** {', '.join(docs[:4])}")
+                    lines.append(f"\n- **📑 {docs_lbl}** {', '.join(docs[:4])}")
 
-                lines.append(f"- **🌐 Official Portal:** [Apply on verified myScheme portal]({s_url})\n")
+                lines.append(f"- **🌐 {portal_lbl}** [Apply on verified myScheme portal]({s_url})\n")
 
             return {
                 "answer_markdown": "\n".join(lines),
@@ -260,7 +305,13 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
             }
 
         if candidate_schemes:
-            lines.append("🙏 **Here are the official Government welfare schemes matching your request:**\n")
+            if is_kn:
+                lines.append("🙏 **ನಿಮ್ಮ ಅಗತ್ಯಕ್ಕೆ ಹೊಂದಿಕೆಯಾಗುವ ಅಧಿಕೃತ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು:**\n")
+            elif is_hi:
+                lines.append("🙏 **आपकी आवश्यकता के अनुसार आधिकारिक सरकारी कल्याणकारी योजनाएं:**\n")
+            else:
+                lines.append("🙏 **Here are the official Government welfare schemes matching your request:**\n")
+
             for idx, s in enumerate(candidate_schemes[:4], 1):
                 s_name = s.get("scheme_name") or s.get("name")
                 s_level = s.get("jurisdiction") or s.get("level") or "Central"
@@ -272,12 +323,29 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
                 lines.append(f"- **Official Portal:** [View on myScheme]({s_url})\n")
 
             if has_questions:
-                lines.append("📋 **Please answer the quick questions below** to verify your complete eligibility tier.")
+                if is_kn:
+                    lines.append("📋 **ಸಂಪೂರ್ಣ ಅರ್ಹತೆಯನ್ನು ಪರಿಶೀಲಿಸಲು ದಯವಿಟ್ಟು ಕೆಳಗಿನ ತ್ವರಿತ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿ.**")
+                elif is_hi:
+                    lines.append("📋 **अपनी पूर्ण पात्रता जांचने के लिए कृपया नीचे दिए गए त्वरित प्रश्नों के उत्तर दें।**")
+                else:
+                    lines.append("📋 **Please answer the quick questions below** to verify your complete eligibility tier.")
             else:
-                lines.append("✅ **Based on the criteria provided, you meet the captured requirements for these programs.**")
+                if is_kn:
+                    lines.append("✅ **ನೀವು ಒದಗಿಸಿದ ವಿವರಗಳ ಪ್ರಕಾರ ಈ ಕಾರ್ಯಕ್ರಮಗಳಿಗೆ ನೀವು ಅರ್ಹರಾಗಿದ್ದೀರಿ.**")
+                elif is_hi:
+                    lines.append("✅ **प्रदान किए गए विवरण के आधार पर आप इन योजनाओं के लिए पात्र हैं।**")
+                else:
+                    lines.append("✅ **Based on the criteria provided, you meet the captured requirements for these programs.**")
         else:
-            lines.append("I searched the official myScheme national repository for welfare programs matching your query.")
-            lines.append("Please specify your primary area of need (e.g., farming subsidies, education scholarships, health insurance, or business loans) to see tailored schemes.")
+            if is_kn:
+                lines.append("ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಸೂಕ್ತವಾದ ಯೋಜನೆಗಳಿಗಾಗಿ ಅಧಿಕೃತ myScheme ರಾಷ್ಟ್ರೀಯ ಭಂಡಾರದಲ್ಲಿ ಹುಡುಕಲಾಗಿದೆ.")
+                lines.append("ದಯವಿಟ್ಟು ನಿಮ್ಮ ಅಗತ್ಯದ ಕ್ಷೇತ್ರವನ್ನು ನಿರ್ದಿಷ್ಟಪಡಿಸಿ (ಉದಾಹರಣೆಗೆ: ರೈತ ಸಹಾಯಧನ, ಶಿಕ್ಷಣ ವಿದ್ಯಾರ್ಥಿವೇತನ, ಆರೋಗ್ಯ ವಿಮೆ, ಅಥವಾ ವ್ಯಾಪಾರ ಸಾಲ).")
+            elif is_hi:
+                lines.append("मैंने आपके प्रश्न के अनुसार आधिकारिक myScheme राष्ट्रीय रिपॉजिटरी में खोज की है।")
+                lines.append("कृपया अपनी आवश्यकता का क्षेत्र स्पष्ट करें (जैसे: किसान सब्सिडी, शिक्षा छात्रवृत्ति, स्वास्थ्य बीमा, या व्यापार ऋण)।")
+            else:
+                lines.append("I searched the official myScheme national repository for welfare programs matching your query.")
+                lines.append("Please specify your primary area of need (e.g., farming subsidies, education scholarships, health insurance, or business loans) to see tailored schemes.")
 
         return {
             "answer_markdown": "\n".join(lines),

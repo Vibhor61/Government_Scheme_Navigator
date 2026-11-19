@@ -216,6 +216,7 @@ export default function App() {
               initialMessages={activeConversation?.messages || []}
               initialProfile={chatInitialProfile || activeConversation?.userProfile || null}
               language={language}
+              onLanguageChange={setLanguage}
               onSaveScheme={handleToggleBookmark}
               savedSchemes={savedSchemes}
               onUpdateConversationTitle={handleUpdateConversationTitle}

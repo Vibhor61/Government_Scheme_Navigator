@@ -82,7 +82,8 @@ def agent_query_endpoint(req: AgentQueryRequest):
         force_live_crawl=req.force_live_crawl,
         user_clarification=req.user_clarification,
         user_profile=req.user_profile,
-        conversation_history=req.conversation_history
+        conversation_history=req.conversation_history,
+        language=req.language
     )
 
 @app.post("/api/eligibility/check")

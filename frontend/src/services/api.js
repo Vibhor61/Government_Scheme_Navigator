@@ -4,11 +4,25 @@ const API_BASE = '/api';
 // AUTONOMOUS CRAWLER AGENT API CLIENT
 // =========================================================================
 
-export async function queryCrawlerAgent(query, force_live_crawl = false, user_clarification = null, conversation_history = null, user_profile = null) {
+export async function queryCrawlerAgent(
+  query,
+  force_live_crawl = false,
+  user_clarification = null,
+  conversation_history = null,
+  user_profile = null,
+  language = 'auto'
+) {
   const response = await fetch(`${API_BASE}/agent/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, force_live_crawl, user_clarification, conversation_history, user_profile }),
+    body: JSON.stringify({
+      query,
+      force_live_crawl,
+      user_clarification,
+      conversation_history,
+      user_profile,
+      language
+    }),
   });
   if (!response.ok) {
     throw new Error(`Agent query failed: ${response.statusText}`);
@@ -74,25 +88,15 @@ export async function clearCrawlerCache() {
   return response.json();
 }
 
-export async function fetchCrawlerWhitelist(params = {}) {
-  const query = new URLSearchParams();
-  if (params.jurisdiction) query.append('jurisdiction', params.jurisdiction);
-  if (params.state) query.append('state', params.state);
-  if (params.category) query.append('category', params.category);
-  const qs = query.toString() ? `?${query.toString()}` : '';
-  const response = await fetch(`${API_BASE}/crawler/whitelist${qs}`);
+export async function checkHealth() {
+  const response = await fetch(`${API_BASE}/health`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch whitelist: ${response.statusText}`);
+    throw new Error(`Health check failed: ${response.statusText}`);
   }
   return response.json();
 }
 
-// =========================================================================
-// SCHEME DIRECTORY & SYSTEM STATS
-// =========================================================================
-
-
-export async function fetchSystemStats() {
+export async function fetchStats() {
   const response = await fetch(`${API_BASE}/stats`);
   if (!response.ok) {
     throw new Error(`Failed to fetch stats: ${response.statusText}`);
