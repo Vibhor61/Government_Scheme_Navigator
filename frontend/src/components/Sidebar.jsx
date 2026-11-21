@@ -239,36 +239,33 @@ export default function Sidebar({
             </button>
           )}
 
-          {/* Language Switcher */}
-          <div className="flex items-center justify-between rounded-lg border border-border bg-sand-50 p-1 dark:border-charcoal-800 dark:bg-charcoal-900">
-            <div className="flex items-center gap-1.5 px-2 text-xs text-charcoal-500 dark:text-charcoal-400">
-              <Globe className="h-3.5 w-3.5" />
-              <span>{isHindi ? 'भाषा' : 'Language'}</span>
+          {/* Multilingual Selector Dropdown in Sidebar */}
+          <div className="rounded-lg border border-border bg-sand-50/80 p-2 dark:border-charcoal-800 dark:bg-charcoal-900">
+            <div className="flex items-center justify-between mb-1.5 px-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-charcoal-700 dark:text-charcoal-300">
+                <Globe className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
+                <span>{isHindi ? 'भाषा चुनें' : 'Language / भाषा'}</span>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-forest-700 dark:text-emerald-400">
+                {language.toUpperCase()}
+              </span>
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setLanguage('en')}
-                className={`rounded px-2.5 py-1 text-xs font-semibold transition ${
-                  language === 'en'
-                    ? 'bg-white text-forest-700 shadow-2xs dark:bg-charcoal-800 dark:text-emerald-400'
-                    : 'text-charcoal-500 hover:text-charcoal-900 dark:text-charcoal-400 dark:hover:text-sand-100'
-                }`}
-              >
-                English
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage('hi')}
-                className={`rounded px-2.5 py-1 text-xs font-semibold transition ${
-                  language === 'hi'
-                    ? 'bg-white text-forest-700 shadow-2xs dark:bg-charcoal-800 dark:text-emerald-400'
-                    : 'text-charcoal-500 hover:text-charcoal-900 dark:text-charcoal-400 dark:hover:text-sand-100'
-                }`}
-              >
-                हिंदी
-              </button>
-            </div>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-xs font-medium text-charcoal-800 shadow-2xs focus:border-forest-500 focus:outline-none dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-sand-100 cursor-pointer"
+              aria-label="Select Interface Language"
+            >
+              <option value="auto">🌐 Auto-Detect (ಸ್ವಯಂ / स्वतः)</option>
+              <option value="en">🇮🇳 English</option>
+              <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+              <option value="kn">🇮🇳 ಕನ್ನಡ (Kannada)</option>
+              <option value="bn">🇮🇳 বাংলা (Bengali)</option>
+              <option value="mr">🇮🇳 मराठी (Marathi)</option>
+              <option value="ta">🇮🇳 தமிழ் (Tamil)</option>
+              <option value="te">🇮🇳 తెలుగు (Telugu)</option>
+              <option value="gu">🇮🇳 ગુજરાતી (Gujarati)</option>
+            </select>
           </div>
 
           {/* Official Verification Footnote */}

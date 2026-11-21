@@ -91,21 +91,31 @@ ROUTER_SYSTEM_PROMPT = """You are the official Central and State Indian Governme
 Your mandate is to analyze incoming citizen messages and make ONE authoritative routing decision and generate search intelligence.
 
 CRITICAL ROUTING INSTRUCTIONS:
-1. OUT-OF-DOMAIN (is_out_of_domain = true):
-   - Mark true ONLY if the query is completely unrelated to Indian government welfare (e.g., programming/code, school math homework, sports/IPL scores, cinema/movies, cooking recipes, commercial e-commerce shopping, personal jokes/flirts/dating).
-   - If the user asks about ANY government scheme, subsidy, scholarship, loan, pension, ration, or citizen eligibility, it is strictly IN-DOMAIN (is_out_of_domain = false).
-   - Context is critical: short answers like "Maharashtra", "21", "General", "Farmer" following prior questions are IN-DOMAIN.
+1. OUT-OF-DOMAIN EVALUATION (is_out_of_domain = true):
+   myScheme is STRICTLY for Indian Government welfare schemes, subsidies, citizen welfare grants, and public entitlements.
+   
+   Set is_out_of_domain = true for ANY of the following:
+   A. COMMERCIAL PRIVATE FINANCE & BANKING:
+      - Private bank personal loans, commercial credit cards, EMI calculators, or private vehicle/gold financing (e.g. "HDFC personal loan interest rate", "ICICI credit card", "Axis bank EMI calculator").
+      - Note: Official Government welfare programs like Pradhan Mantri Mudra Yojana (PMMY), PMEGP, Stand-Up India, PM SVANidhi, and Vidya Lakshmi education loans are STRICTLY IN-DOMAIN. But purely commercial private bank retail loans are OUT-OF-DOMAIN.
+   B. RETAIL PRODUCT & AUTOMOBILE SHOWROOM SHOPPING:
+      - Showroom vehicle prices, on-road prices, dealer discounts, smartphone/electronics shopping (e.g. "Mahindra 575 DI tractor on road price", "iPhone discount", "best bike under 1 lakh").
+      - Note: Government equipment or EV subsidies (like PM-KUSUM or SMAM mechanization subsidies) are IN-DOMAIN. Asking for retail dealer showroom prices is OUT-OF-DOMAIN.
+   C. CLINICAL MEDICAL ADVICE & SYMPTOM PRESCRIPTIONS:
+      - Requesting symptom diagnosis, medical advice, prescription medicines (e.g. "chest pain what tablet to take", "medicine for fever").
+      - Note: Inquiring about government health insurance (Ayushman Bharat PM-JAY), Jan Aushadhi free medicines, or government hospital welfare is IN-DOMAIN.
+   D. CRIMINAL LAW, PRIVATE PROPERTY DISPUTES, OR POLICE FIR:
+      - Inquiries on filing criminal police FIRs, neighbor boundary disputes, private court litigation, hiring private lawyers.
+      - Note: Official government legal aid (NALSA) or victim compensation schemes are IN-DOMAIN.
+   E. PROGRAMMING, HOMEWORK, SPORTS, CINEMA, RECIPES, GENERAL CHAT:
+      - Coding (Python, SQL), math homework, IPL/cricket scores, movie reviews, food recipes, casual banter.
+   F. PURE FOREIGN PROGRAMS & INTERNATIONAL MATTERS:
+      - Foreign university admissions, US/UK/Canada visas, foreign government financial aid (FAFSA, Chevening, Fulbright).
+      - IMPORTANT EXCEPTION (STRICTLY IN-DOMAIN): Official Government of India schemes supporting citizens for overseas education (e.g. National Overseas Scholarship - NOS by Ministry of Social Justice for SC/ST students, or Dr. Ambedkar Central Sector Scheme) are ALWAYS IN-DOMAIN.
 
-   ⚠️ GEOGRAPHIC SCOPE — INDIA ONLY (is_out_of_domain = true for ALL of these):
-   - Queries about studying, working, migrating, or living ABROAD or OVERSEAS are OUT-OF-DOMAIN.
-   - Queries about foreign universities (Harvard, Oxford, MIT, NUS, etc.) are OUT-OF-DOMAIN.
-   - Queries about foreign scholarship programs (Chevening, Fulbright, DAAD, Erasmus, Gates Cambridge, Rhodes, etc.) are OUT-OF-DOMAIN.
-   - Queries about visas for foreign countries (US visa, UK visa, Schengen visa, student visa abroad) are OUT-OF-DOMAIN.
-   - Queries about schemes, grants, or benefits from foreign governments (US, UK, Australia, Canada, EU, Germany, etc.) are OUT-OF-DOMAIN.
-   - Queries about immigration, emigration, permanent residency abroad, or green cards are OUT-OF-DOMAIN.
-   - Queries about working in foreign countries or international job permits are OUT-OF-DOMAIN.
-   - If a query says "foreign education scheme" or "government scholarship for studying abroad in USA/UK/etc." — this is OUT-OF-DOMAIN because it pertains to foreign-country education, NOT an Indian welfare scheme.
-   - EXCEPTION (always IN-DOMAIN): Indian government schemes that FUND Indians studying at Indian institutions (e.g., Central Sector Scholarship, PM-USP, Vidya Lakshmi loan portal, NSP scholarships) are ALWAYS in-domain regardless of the word "foreign" appearing in context.
+   When is_out_of_domain = true:
+   - Provide a concise out_of_domain_reason.
+   - Provide a helpful, polite polite_ood_refusal in the citizen's detected language explaining that JanSahayak exclusively guides Indian Government welfare benefits.
 
 2. WORKFLOW CLASSIFICATION (workflow):
    - "GREETING": Greetings, namaste, hello, or asking what the platform can do.
@@ -290,10 +300,15 @@ Analyze this message, classify the workflow, identify language and script, formu
         matched_ood = False
         if not is_greet:
             from .domain_guard import GEOGRAPHIC_OOD_PATTERNS
-            for pat in GEOGRAPHIC_OOD_PATTERNS:
-                if re.search(pat, lower_query, re.IGNORECASE):
-                    matched_ood = True
-                    break
+            is_goi_overseas_scheme = any(kw in lower_query for kw in [
+                "national overseas scholarship", "nos scheme", "nos scholarship",
+                "ministry of social justice", "dr. ambedkar overseas", "dr ambedkar central sector"
+            ])
+            if not is_goi_overseas_scheme:
+                for pat in GEOGRAPHIC_OOD_PATTERNS:
+                    if re.search(pat, lower_query, re.IGNORECASE):
+                        matched_ood = True
+                        break
             if not matched_ood:
                 for pat in OUT_OF_DOMAIN_PATTERNS:
                     if re.search(pat, lower_query):
@@ -334,11 +349,12 @@ Analyze this message, classify the workflow, identify language and script, formu
         must_include = list(words) if words else ["scheme"]
         must_exclude = []
 
-        is_agri = any(k in query_for_intent for k in ["farm", "kisan", "crop", "agri", "tractor", "pump", "raita", "sheti"])
-        is_edu = any(k in query_for_intent for k in ["study", "student", "btech", "college", "school", "scholarship", "exam", "vidyanidhi", "chhatro"])
-        is_biz = any(k in query_for_intent for k in ["business", "loan", "startup", "msme", "mudra", "shop", "manufacturing", "salavannu", "karj"])
-        is_health = any(k in query_for_intent for k in ["health", "hospital", "doctor", "treatment", "disease", "elderly", "parent", "ayushman"])
-        is_girl = any(k in query_for_intent for k in ["girl", "daughter", "single girl", "beti", "kanya"])
+        is_agri = any(k in query_for_intent for k in ["farm", "kisan", "crop", "agri", "tractor", "pump", "raita", "sheti", "किसान", "कृषि", "खेती", "फसल"])
+        is_edu = any(k in query_for_intent for k in ["study", "student", "btech", "college", "school", "scholarship", "exam", "vidyanidhi", "chhatro", "education", "शिक्षा", "एजुकेशन", "पढ़ाई", "छात्र", "विद्यार्थी", "छात्रवृत्ति", "स्कॉलरशिप"])
+        is_biz = any(k in query_for_intent for k in ["business", "loan", "startup", "msme", "mudra", "shop", "manufacturing", "salavannu", "karj", "व्यापार", "लोन", "ऋण", "कर्ज", "मुद्रा"])
+        is_health = any(k in query_for_intent for k in ["health", "hospital", "doctor", "treatment", "disease", "elderly", "parent", "ayushman", "स्वास्थ्य", "इलाज", "अस्पताल", "दवा", "आयुष्मान"])
+        is_girl = any(k in query_for_intent for k in ["girl", "daughter", "single girl", "beti", "kanya", "बेटी", "कन्या", "बालिका", "लाडली"])
+        has_edu_loan = is_edu and any(k in query_for_intent for k in ["loan", "लोन", "ऋण", "कर्ज", "interest subsidy", "subsidy", "सब्सिडी"])
 
         if is_agri:
             target_sector = "Agriculture & Rural"
@@ -348,7 +364,10 @@ Analyze this message, classify the workflow, identify language and script, formu
         elif is_edu or is_girl:
             target_sector = "Education & Learning"
             target_role = "student"
-            must_include.extend(["scholarship", "student", "education"])
+            if has_edu_loan:
+                must_include.extend(["education loan", "student loan", "interest subsidy", "Vidya Lakshmi", "education"])
+            else:
+                must_include.extend(["scholarship", "student", "education"])
             if is_girl:
                 must_include.append("girl")
             must_exclude.extend(["farmer", "kisan", "crop", "tractor"])

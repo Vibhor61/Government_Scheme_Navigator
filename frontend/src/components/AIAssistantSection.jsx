@@ -263,6 +263,7 @@ export default function AIAssistantSection({
           <EmptyState
             onSelectPrompt={(promptQuery) => handleSend(promptQuery)}
             language={language}
+            onOpenVoice={handleOpenVoicePopup}
           />
         ) : (
           <div className="mx-auto max-w-3xl space-y-6">
@@ -532,6 +533,20 @@ export default function AIAssistantSection({
             </div>
           )}
 
+          {/* Quick Voice Bar for fast voice follow-up */}
+          {messages.length > 0 && !isVoicePopupOpen && (
+            <div className="flex justify-center -mt-1 pb-1">
+              <button
+                type="button"
+                onClick={handleOpenVoicePopup}
+                className="inline-flex items-center gap-2 rounded-full bg-forest-700 hover:bg-forest-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-4 py-1.5 text-xs font-semibold shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <Mic className="h-3.5 w-3.5 animate-pulse text-amber-300" />
+                <span>{isHindi ? '🎙️ बोलकर अगला सवाल पूछें' : '🎙️ Tap to Speak Next Question'}</span>
+              </button>
+            </div>
+          )}
+
           {/* Input Form */}
           <form
             onSubmit={(e) => {
@@ -559,19 +574,26 @@ export default function AIAssistantSection({
 
             {/* Actions: Voice & Send */}
             <div className="flex items-center gap-1.5 shrink-0 pb-1 pr-1">
-              {/* Voice Input Button → opens popup */}
+              {/* Voice Input Button → Prominently styled and labeled */}
               <button
                 type="button"
                 onClick={handleOpenVoicePopup}
-                className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                className={`flex h-10 items-center gap-1.5 px-3 rounded-xl transition border cursor-pointer ${
                   isListening
-                    ? 'bg-red-500 text-white animate-pulse'
-                    : 'text-charcoal-400 hover:bg-sand-200 hover:text-charcoal-700 dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100'
+                    ? 'bg-red-500 border-red-600 text-white animate-pulse'
+                    : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-forest-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                 }`}
                 title={isHindi ? 'आवाज़ से बोलें' : 'Speak your query'}
                 aria-label={isHindi ? 'आवाज़ से बोलें' : 'Voice input'}
               >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isListening ? (
+                  <MicOff className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4 animate-pulse text-emerald-600 dark:text-emerald-400" />
+                )}
+                <span className="text-xs font-bold whitespace-nowrap">
+                  {isHindi ? 'बोलें' : 'Speak'}
+                </span>
               </button>
 
               {/* Send Button */}

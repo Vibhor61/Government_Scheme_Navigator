@@ -144,8 +144,9 @@ function WaveformBars({ active }) {
 }
 
 const QUICK_VOICE_LANGS = [
-  { code: 'en', label: 'English' },
+  { code: 'auto', label: '✨ Auto (ऑटो / All)' },
   { code: 'hi', label: 'हिंदी' },
+  { code: 'en', label: 'English' },
   { code: 'kn', label: 'ಕನ್ನಡ' },
   { code: 'bn', label: 'বাংলা' },
   { code: 'ta', label: 'தமிழ்' },
@@ -157,7 +158,7 @@ const QUICK_VOICE_LANGS = [
 export default function VoicePopup({
   isOpen,
   onClose,
-  language = 'en',
+  language = 'auto',
   onLanguageChange,
   isListening,
   transcript,
@@ -171,6 +172,13 @@ export default function VoicePopup({
   const strings = getStrings(language);
   const hasText = transcript.trim().length > 0;
   const displayText = transcript + (interimTranscript ? ` ${interimTranscript}` : '');
+
+  // Auto-start listening as soon as modal opens
+  useEffect(() => {
+    if (isOpen && speechSupported && !isListening) {
+      onToggleListening?.();
+    }
+  }, [isOpen]);
 
   // Keyboard: Escape closes
   useEffect(() => {
@@ -217,6 +225,9 @@ export default function VoicePopup({
             <p className="text-xs text-charcoal-500 dark:text-charcoal-400 mt-0.5">
               {strings.hint}
             </p>
+            <span className="inline-block mt-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+              ✓ भाषा चुनने की आवश्यकता नहीं • सीधे बोलें
+            </span>
           </div>
 
           {/* Language selector chips */}

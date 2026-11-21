@@ -13,7 +13,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-# Multi-word scheme terms
+# Multi-word scheme terms (English)
 MULTI_WORD_SCHEME_TERMS = [
     "surya ghar", "matru vandana", "ration card", "jan dhan", "atal pension",
     "stand up india", "startup india", "seed fund", "interest subsidy",
@@ -25,6 +25,52 @@ MULTI_WORD_SCHEME_TERMS = [
     "education loan", "higher education", "skill development", "kisan credit",
     "self help group", "women entrepreneur", "free electricity", "pucca house"
 ]
+
+# Multi-word scheme terms in Indic scripts
+MULTI_WORD_INDIC_TERMS = [
+    "एजुकेशन लोन", "शिक्षा ऋण", "छात्र ऋण", "हायर एजुकेशन", "पीएम किसान", "किसान सम्मान",
+    "सूर्य घर", "मुद्रा लोन", "आयुष्मान भारत", "राशन कार्ड", "अटल पेंशन", "मातृ वंदना",
+    "सुकन्या समृद्धि", "उज्ज्वला योजना", "पीएम आवास", "लखपति दीदी", "विद्या लक्ष्मी",
+    "विद्या संबल", "विद्यानिधि", "लाडली बहना", "लाडली लक्ष्मी", "मुफ्त बिजली"
+]
+
+# Vernacular & Indic welfare terminology across major Indian scripts (Hindi, Marathi, Bengali, Tamil, Telugu, Kannada, Gujarati, Punjabi)
+INDIC_SCHEME_TERMS = {
+    # Hindi / Devanagari core welfare words
+    "योजना", "योजनाएं", "योजनाओं", "योजनाओ", "योजनां", "स्कीम", "स्कीम्स", "स्कीमे",
+    "लोन", "ऋण", "कर्ज", "सब्सिडी", "अनुदान", "छात्रवृत्ति", "स्कॉलरशिप", "पेंशन",
+    "बीमा", "राशन", "राशनकार्ड", "पात्रता", "पात्र", "आवेदन", "अप्लाई", "फॉर्म",
+    "सरकारी", "सरकार", "लाभ", "लाभार्थी", "फायदा", "सहायता", "मदद", "छूट", "मुफ्त", "फ्री",
+    
+    # Demographics & beneficiaries (Hindi / Devanagari)
+    "किसान", "विद्यार्थी", "छात्र", "छात्रा", "छात्रों", "महिला", "महिलाएं", "महिलाओ",
+    "बेटी", "बालिका", "बच्चे", "गरीब", "बीपीएल", "श्रमिक", "मजदूर", "कामगार", "कारीगर",
+    "दुकानदार", "व्यापारी", "दिव्यांग", "विकलांग", "वृद्ध", "बुजुर्ग", "विधवा", "युवा", "बेरोजगार",
+    
+    # Key sectors (Hindi / Devanagari)
+    "शिक्षा", "एजुकेशन", "पढ़ाई", "शिक्षण", "स्कूल", "कॉलेज", "यूनिवर्सिटी", "डिग्री",
+    "इंजीनियरिंग", "मेडिकल", "कृषि", "खेती", "फसल", "खाद", "उर्वरक", "बीज", "ट्रैक्टर",
+    "पंप", "सोलर", "सौर", "बिजली", "स्वास्थ्य", "इलाज", "अस्पताल", "दवा", "आवास",
+    "मकान", "घर", "मुद्रा", "पीएम", "आयुष्मान", "कुसुम", "उज्ज्वला", "स्वनिधि", "विश्वकर्मा", "सुकन्या",
+
+    # Marathi specifics
+    "शेतकरी", "शिष्यवृत्ती", "निवृत्तीवेतन", "विमा", "वीज", "आरोग्य", "औषध", "पीक", "बियाणे",
+
+    # Bengali
+    "যোজনা", "স্কিম", "ঋণ", "লোন", "ভাতা", "বৃত্তি", "স্কলারশিপ", "কৃষক", "ছাত্র", "শিক্ষা", "সাহায্য", "সরকারি",
+
+    # Kannada
+    "ಯೋಜನೆ", "ಸಾಲ", "ಸಬ್ಸಿಡಿ", "ವೇತನ", "ವಿದ್ಯಾರ್ಥಿವೇತನ", "ರೈತ", "ವಿದ್ಯಾರ್ಥಿ", "ಶಿಕ್ಷಣ", "ಅರ್ಜಿ", "ಸಹಾಯಧನ", "ಸರ್ಕಾರಿ",
+
+    # Tamil
+    "திட்டம்", "கடன்", "மானியம்", "உதவித்தொகை", "விவசாயி", "மாணவர்", "கல்வி", "அரசு",
+
+    # Telugu
+    "పథకం", "రుణం", "సబ్సిడీ", "రైతు", "విద్యార్థి", "చదువు", "పెన్షన్", "ప్రభుత్వ",
+
+    # Gujarati
+    "યોજના", "લોન", "સબસિડી", "શિષ્યવૃત્તિ", "ખેડૂત", "વિદ્યાર્થી", "શિક્ષણ", "સહાય", "સરકારી"
+}
 
 # Single-word scheme and welfare terms matched as whole words (tokens)
 SINGLE_WORD_SCHEME_TERMS = {
@@ -130,10 +176,22 @@ OUT_OF_DOMAIN_PATTERNS = [
     r"\b(?:tell\s*(?:me\s*)?(?:a\s*)?joke|tell\s*(?:me\s*)?(?:a\s*)?story|poem|write\s*(?:a\s*)?poem|riddle|are\s*you\s*(?:human|real|alive|robot)|do\s*you\s*love\s*me|marry\s*me|who\s*made\s*you|flirt|weather\s*(?:in|today|tomorrow|forecast))\b",
     
     # World trivia, non-government history/geography
-    r"\b(?:capital\s*of\s*(?!india\b)[a-z]+|who\s*was\s*(?:napoleon|einstein|shakespeare|alexander|hitler|columbus)|who\s*invented|speed\s*of\s*light|how\s*far\s*is\s*(?:the\s*)?(?:moon|sun|mars)|distance\s*to|explain\s*photosynthesis)\b"
+    r"\b(?:capital\s*of\s*(?!india\b)[a-z]+|who\s*was\s*(?:napoleon|einstein|shakespeare|alexander|hitler|columbus)|who\s*invented|speed\s*of\s*light|how\s*far\s*is\s*(?:the\s*)?(?:moon|sun|mars)|distance\s*to|explain\s*photosynthesis)\b",
+
+    # Private commercial banking and credit cards (without government scheme context)
+    r"\b(?:hdfc|icici|axis\s*bank|kotak|bajaj\s*finserv)\s+(?:bank\s+)?(?:personal\s*loan|credit\s*card|gold\s*loan\s*emi|emi\s*calculator)\b",
+
+    # Commercial vehicle showroom price and retail shopping (not government subsidy)
+    r"\b(?:on\s*road\s*price|showroom\s*(?:price|discount)|dealer\s*price|dealer\s*showroom\s*discount|second\s*hand\s*(?:car|bike|tractor)\s*price)\b",
+
+    # Direct clinical medical advice, symptom diagnosis, and prescription requests (not health insurance/schemes)
+    r"\b(?:what\s+(?:tablet|medicine|\w+\s+tablet|\w+\s+medicine|tablet\s+or\s+medicine)|what\s+medicine\s+should\s+i\s+take|prescription|pain\s+relief\s+tablet|should\s+i\s+take\s+(?:for|to)|cure\s+my\s+(?:fever|pain|cough)|paining\s+severely|symptom\s+of\s+cancer|diagnose\s+my|fever\s+tablet|headache\s+medicine)\b",
+
+    # Criminal law, police FIR registration, and civil property boundary disputes
+    r"\b(?:police\s*(?:station|thana)?\s*(?:mein\s*)?fir|file\s*(?:a\s*)?police\s*fir|file\s*(?:an\s*)?fir|एफआईआर\s*(?:कैसे\s*)?दर्ज|पुलिस\s*थाना\s*में\s*एफआईआर|court\s*case\s*against|hire\s*(?:a\s*)?lawyer)\b"
 ]
 
-# Prompt injection & jailbreak patterns
+# Prompt injection & jailbreak patterns (English & Indic)
 PROMPT_INJECTION_PATTERNS = [
     r"\b(?:ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|directions|rules|prompts))\b",
     r"\b(?:disregard\s+all\s+(?:rules|guidelines|constraints))\b",
@@ -141,6 +199,7 @@ PROMPT_INJECTION_PATTERNS = [
     r"\b(?:jailbreak(?:\s+mode)?|bypass\s+(?:all\s+)?guardrails)\b",
     r"\b(?:system\s+prompt|reveal\s+(?:your\s+)?prompt|print\s+(?:the\s+)?system\s+prompt)\b",
     r"\b(?:pretend\s+you\s+have\s+no\s+(?:rules|restrictions|ethics))\b",
+    r"सिस्टम\s*निर्देश|सुरक्षा\s*नियम\s*बाईपास|प्रॉम्प्ट\s*(?:दिखाओ|प्रिंट\s*करो|स्क्रीन\s*पर)",
     r"<\s*script\b|javascript:|eval\s*\(|union\s+select\b",
 ]
 
@@ -166,9 +225,13 @@ def is_greeting(query: str) -> bool:
 
 
 def has_scheme_terms(text: str) -> bool:
-    """Checks if text contains authentic whole-word scheme/welfare terms."""
+    """Checks if text contains authentic scheme/welfare terms in English or Indian scripts."""
     lowered = text.casefold()
     if any(mwt in lowered for mwt in MULTI_WORD_SCHEME_TERMS):
+        return True
+    if any(mwit in lowered for mwit in MULTI_WORD_INDIC_TERMS):
+        return True
+    if any(it in lowered for it in INDIC_SCHEME_TERMS):
         return True
     tokens = set(re.findall(r"\b[a-z0-9]+(?:-[a-z0-9]+)*\b", lowered))
     return bool(tokens & SINGLE_WORD_SCHEME_TERMS)
@@ -340,49 +403,30 @@ def check_domain_guard(
 
     lower_query = cleaned.casefold()
 
-    # 6. GEOGRAPHIC SCOPE CHECK — evaluated BEFORE has_scheme_terms override.
-    # Blocks foreign/abroad queries even when welfare words like "scheme", "scholarship" appear.
-    for pat in GEOGRAPHIC_OOD_PATTERNS:
-        if re.search(pat, lower_query, re.IGNORECASE):
-            return "OUT_OF_DOMAIN", generate_geographic_ood_refusal(cleaned)
+    # 6. GEOGRAPHIC SCOPE CHECK — evaluated BEFORE general domain check.
+    # Exemption: Legitimate Government of India welfare schemes for overseas studies (e.g. National Overseas Scholarship - NOS)
+    is_goi_overseas_scheme = any(kw in lower_query for kw in [
+        "national overseas scholarship", "nos scheme", "nos scholarship",
+        "ministry of social justice", "dr. ambedkar overseas", "dr ambedkar central sector"
+    ])
+    if not is_goi_overseas_scheme:
+        for pat in GEOGRAPHIC_OOD_PATTERNS:
+            if re.search(pat, lower_query, re.IGNORECASE):
+                return "OUT_OF_DOMAIN", generate_geographic_ood_refusal(cleaned)
 
-    # 7. Check for explicit out-of-domain patterns (coding, sports, cinema, homework, etc.)
+    # 7. Check for explicit negative out-of-domain patterns (coding, sports, cinema, homework, recipes)
     matched_ood = False
     for pat in OUT_OF_DOMAIN_PATTERNS:
         if re.search(pat, lower_query):
             matched_ood = True
             break
 
-    # 7. Check for explicit scheme terms
-    has_scheme = has_scheme_terms(lower_query)
-
-    # 8. Check for explicit eligibility / application patterns
-    has_eligibility = bool(re.search(
-        r"\b(?:eligible|eligibility|apply|application|subsidy|subsidies|scholarship|scholarships|pension|pensions|yojana|scheme|schemes|welfare|benefit|benefits|patrata)\b",
-        lower_query
-    ))
-
-    # Decision Matrix:
-    # If explicit out-of-domain pattern matches (coding, recipes, sports, etc.):
-    # Only allow if there is an explicit government scheme identifier (e.g. "is there a scheme for sports players")
     if matched_ood:
-        strong_override = bool(re.search(
-            r"\b(?:scheme|yojana|subsidy|scholarship|pension|pm-kisan|ayushman|myscheme|government|sarkari)\b",
-            lower_query
-        ))
-        if not strong_override:
-            return "OUT_OF_DOMAIN", generate_ood_refusal(cleaned)
-
-    # If it contains scheme terms or eligibility phrasing
-    if has_scheme or has_eligibility:
-        return "IN_DOMAIN", None
-
-    # If query has 3 or more words and ZERO scheme/welfare/citizen aid indicators
-    words = cleaned.split()
-    if len(words) >= 3:
         return "OUT_OF_DOMAIN", generate_ood_refusal(cleaned)
 
-    # Short ambiguous inputs default to in-domain to allow multi-turn clarification
+    # All genuine citizen queries pass to Stage 2 Semantic LLM Router,
+    # which natively understands intent, context, and multi-lingual semantics
+    # without brittle static keyword dictionaries.
     return "IN_DOMAIN", None
 
 

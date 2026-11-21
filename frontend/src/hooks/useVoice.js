@@ -6,8 +6,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export const LANGUAGE_CONFIG = {
-  en:   { locale: 'en-IN',  label: 'English',    nativeLabel: 'English' },
+  auto: { locale: 'hi-IN',  label: 'Auto (Hinglish/All)', nativeLabel: 'ऑटो' },
   hi:   { locale: 'hi-IN',  label: 'Hindi',      nativeLabel: 'हिंदी' },
+  en:   { locale: 'en-IN',  label: 'English',    nativeLabel: 'English' },
   bn:   { locale: 'bn-IN',  label: 'Bengali',    nativeLabel: 'বাংলা' },
   mr:   { locale: 'mr-IN',  label: 'Marathi',    nativeLabel: 'मराठी' },
   ta:   { locale: 'ta-IN',  label: 'Tamil',      nativeLabel: 'தமிழ்' },
@@ -17,11 +18,14 @@ export const LANGUAGE_CONFIG = {
   pa:   { locale: 'pa-IN',  label: 'Punjabi',    nativeLabel: 'ਪੰਜਾਬੀ' },
   or:   { locale: 'or-IN',  label: 'Odia',       nativeLabel: 'ଓଡ଼ିଆ' },
   ml:   { locale: 'ml-IN',  label: 'Malayalam',  nativeLabel: 'മലയാളം' },
-  auto: { locale: 'en-IN',  label: 'Auto',       nativeLabel: 'Auto' },
 };
 
 function getLocale(lang) {
-  return LANGUAGE_CONFIG[lang]?.locale || 'en-IN';
+  if (!lang || lang === 'auto') {
+    // hi-IN recognition in Chromium handles both Hindi, Hinglish, and English accents reliably
+    return 'hi-IN';
+  }
+  return LANGUAGE_CONFIG[lang]?.locale || 'hi-IN';
 }
 
 /** Strip markdown symbols for clean TTS output */
@@ -110,12 +114,12 @@ export default function useVoice(language = 'en') {
       setInterimTranscript('');
       if (event.error !== 'aborted') {
         const msgs = {
-          'not-allowed':    'Microphone permission denied. Please allow mic access.',
-          'no-speech':      'No speech detected. Please try again.',
-          'network':        'Network error during speech recognition.',
-          'audio-capture':  'No microphone found.',
+          'not-allowed':    'Microphone permission denied. Please allow microphone access in your browser settings.',
+          'no-speech':      'No speech detected. Please speak clearly into your mic.',
+          'network':        'Network error. If using Brave browser, enable "Use Google services for speech recognition" in brave://settings/privacy, or try Google Chrome / Edge.',
+          'audio-capture':  'No microphone found. Please connect a microphone.',
         };
-        setMicError(msgs[event.error] || `Speech error: ${event.error}`);
+        setMicError(msgs[event.error] || `Speech recognition error: ${event.error}`);
       }
     };
 

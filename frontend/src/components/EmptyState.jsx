@@ -5,13 +5,14 @@ import {
   Briefcase,
   GraduationCap,
   Landmark,
+  Mic,
   ShieldCheck,
   Sparkles,
   Sun,
   Wheat
 } from 'lucide-react';
 
-export default function EmptyState({ onSelectPrompt, language = 'en' }) {
+export default function EmptyState({ onSelectPrompt, language = 'en', onOpenVoice }) {
   const isHindi = language === 'hi';
 
   const prompts = [
@@ -102,6 +103,27 @@ export default function EmptyState({ onSelectPrompt, language = 'en' }) {
                 ? 'अपनी जरूरत बताएं। पात्रता समझें, लाभ जानें और आधिकारिक आवेदन तक पहुंचें।'
                 : 'Tell us what you need. Understand eligibility, compare benefits, and find the official next step.'}
             </p>
+
+            {/* Primary Voice Action for Easy Access */}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={onOpenVoice}
+                className="group relative inline-flex items-center gap-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 px-6 py-3.5 text-forest-950 shadow-xl shadow-amber-950/25 transition-all hover:scale-[1.03] active:scale-95 cursor-pointer border border-amber-200"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-900 text-amber-300 shadow-inner group-hover:bg-forest-950 transition">
+                  <Mic className="h-5 w-5 animate-pulse" />
+                </span>
+                <span className="flex flex-col text-left">
+                  <span className="text-base font-extrabold tracking-tight">
+                    {isHindi ? 'बोलकर योजना खोजें' : 'Tap to Speak / बोलकर खोजें'}
+                  </span>
+                  <span className="text-[11px] font-semibold text-forest-800">
+                    {isHindi ? 'सीधे बोलें • किसी भी भाषा में पूछें' : 'Speak in your language • No typing needed'}
+                  </span>
+                </span>
+              </button>
+            </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-emerald-50/90 sm:text-sm">
               <span className="inline-flex items-center gap-2">
