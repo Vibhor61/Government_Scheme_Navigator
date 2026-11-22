@@ -807,6 +807,8 @@ class PolicyInteractionEngine:
     Uses LLM-first dynamic analysis with a multi-sector deterministic fallback.
     """
 
+    _policy_cache: Dict[str, Dict[str, Any]] = {}
+
     @classmethod
     def evaluate(
         cls,
@@ -826,6 +828,12 @@ class PolicyInteractionEngine:
                 "cross_scheme_conflicts": [],
                 "conflict_alert": None
             }
+
+        scheme_names = tuple(sorted(str(s.get("name") or s.get("scheme_name", "")) for s in schemes))
+        cache_key = f"{scheme_names}:{target_language}"
+        if cache_key in cls._policy_cache:
+            logger.info("PolicyInteractionEngine cache hit for %d schemes; 0 Groq tokens used.", len(schemes))
+            return cls._policy_cache[cache_key]
 
         profile = user_profile or {}
 
@@ -859,20 +867,26 @@ class PolicyInteractionEngine:
             welfare_stack = llm_result.get("welfare_stack")
             primary_conflict = conflicts[0] if conflicts else None
 
-            return {
+            res = {
                 "welfare_stack": welfare_stack,
                 "cross_scheme_conflicts": conflicts,
                 "conflict_alert": primary_conflict
             }
+            cls._policy_cache[cache_key] = res
+            return res
 
-        # Zero synthetic fallback when LLM policy reasoning is unavailable or rate-limited
-        logger.warning("LLM policy evaluation unavailable or hit rate limit; zero synthetic fallback generated.")
-        conflicts = [source_conflict] if source_conflict and source_conflict.get("has_conflict") else []
-        return {
-            "welfare_stack": None,
-            "cross_scheme_conflicts": conflicts,
-            "conflict_alert": conflicts[0] if conflicts else None
-        }
+        # Robust multi-domain deterministic fallback when LLM policy reasoning is unavailable or rate-limited
+        logger.info("LLM policy evaluation skipped or rate-limited; using robust multi-domain deterministic fallback.")
+        res = cls._evaluate_deterministic_fallback(
+            schemes=schemes,
+            user_profile=profile,
+            user_query=user_query,
+            source_conflict=source_conflict,
+            target_language=target_language,
+            language_name=language_name,
+        )
+        cls._policy_cache[cache_key] = res
+        return res
 
     @classmethod
     def _evaluate_with_llm(

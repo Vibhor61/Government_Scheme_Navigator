@@ -139,45 +139,25 @@ class CentralAgentPlanner:
             target_lang = detected_lang
             target_lang_name = detected_name
 
-        # Check for upstream AI service unavailable / rate limit
+        # Check for upstream AI service unavailable / rate limit -> recover via deterministic router
         if router_res.get("is_service_unavailable"):
-            service_msg = router_res.get("service_message") or generate_service_unavailable_response(target_lang)
-            trace.append({
-                "step": 1,
-                "type": "ROUTER",
-                "tool_name": self.router.name,
-                "title": "Stage 1: Intent Routing (Upstream AI Capacity Limit)",
-                "observation": "Upstream Groq LLM capacity reached (HTTP 429).",
-                "status": "SERVICE_UNAVAILABLE",
-                "latency_ms": t1_lat,
-            })
-            return {
-                "query": user_query,
-                "answer": service_msg,
-                "key_takeaways": [
-                    "Upstream AI service capacity reached (Groq API HTTP 429). Please retry in 30 seconds."
-                ],
-                "eligibility_checklist": [],
-                "eligibility_matrix": [],
-                "eligibility_status": "service_unavailable",
-                "best_match_scheme": None,
-                "other_schemes": [],
-                "profiler_questions": [],
-                "conflict_alert": None,
-                "resolution": None,
-                "missing_details": None,
-                "agent_trace": trace,
-                "extracted_schemes": [],
-                "portal_results": [],
-                "crawled_sources": [],
-                "crawler_metrics": {
-                    "total_execution_ms": int(t1_lat),
-                    "security_whitelist_passed": True,
-                    "guard_status": "SERVICE_UNAVAILABLE",
-                },
-                "detected_language": target_lang,
-                "language_name": target_lang_name,
-            }
+            logger.warning("Router reported service unavailable / rate limit; activating deterministic fallback routing.")
+            router_res = self.router._fallback_route(
+                user_query=user_query,
+                conversation_history=conversation_history,
+                user_profile=user_profile,
+                preferred_language=language,
+            )
+            detected_lang = router_res.get("detected_language") or "en"
+            detected_name = router_res.get("language_name") or "English"
+            script_type = router_res.get("script_type") or "latin"
+
+            if language and language != "auto" and language in LANGUAGE_NAMES:
+                target_lang = language
+                target_lang_name = LANGUAGE_NAMES[language]
+            else:
+                target_lang = detected_lang
+                target_lang_name = detected_name
 
         # Check for Out-of-Domain via Router LLM
         if router_res.get("is_out_of_domain"):

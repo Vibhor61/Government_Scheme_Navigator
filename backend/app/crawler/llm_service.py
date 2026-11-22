@@ -31,9 +31,9 @@ class LLMService:
         self._rate_limited_until: Dict[str, float] = {}
 
         self.models = [
-            settings.GROQ_MODEL or "qwen/qwen3.8-27b",
-            "qwen/qwen3.8-27b",
-            "openai/gpt-oss-20b"
+            settings.GROQ_MODEL or "openai/gpt-oss-20b",
+            settings.GROQ_FALLBACK_MODEL or "qwen/qwen3.8-27b",
+            "openai/gpt-oss-120b"
         ]
         seen = set()
         self.active_models = [m for m in self.models if not (m in seen or seen.add(m))]
@@ -122,19 +122,21 @@ class LLMService:
                             except (KeyError, IndexError, TypeError, json.JSONDecodeError) as error:
                                 logger.warning("LLM returned invalid JSON from model %s: %s", model, error)
                         elif resp.status_code == 429:
-                            # Immediate failover: mark this key as rate-limited and try next key in pool
-                            self.mark_key_rate_limited(api_key, cooldown_seconds=30.0)
+                            # Immediate model-level failover: rate limits on Groq are model-specific!
                             logger.warning(
-                                "Groq key %s... hit HTTP 429 on model %s; failing over to next API key in pool",
+                                "Groq key %s... hit HTTP 429 on model %s; trying next available model...",
                                 api_key[:10], model
                             )
-                            break  # Break inner model loop to immediately try the next key
+                            continue  # Try next model in active_models
                         else:
                             resp_text = getattr(resp, "text", "")
                             logger.warning("LLM request to model %s returned HTTP %s: %s", model, resp.status_code, resp_text[:200])
                 except httpx.HTTPError as error:
                     logger.warning("LLM request to model %s failed: %s", model, error)
                     continue
+
+            # If all active models were rate-limited or failed on this key, mark key with short cooldown and rotate
+            self.mark_key_rate_limited(api_key, cooldown_seconds=10.0)
 
         return None
 

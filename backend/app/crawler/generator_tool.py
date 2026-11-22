@@ -134,27 +134,26 @@ class ResponseGeneratorTool:
             stage_desc = "FINAL STAGE (all criteria are resolved; deliver complete eligibility assessment)"
 
         compact_schemes = []
-        for s in candidate_schemes[:4]:
+        for s in candidate_schemes[:3]:
             compact_schemes.append({
                 "name": s.get("scheme_name") or s.get("name"),
                 "jurisdiction": s.get("jurisdiction") or s.get("level") or "Central",
                 "benefit": s.get("benefit") or (s.get("benefits") and s["benefits"][0]) or "Financial assistance",
                 "eligibility_rules_summary": [
                     r.get("rule_text") or f"{r.get('field')} {r.get('operator')} {r.get('value')}"
-                    for r in s.get("eligibility_rules", [])[:6] if isinstance(r, dict)
+                    for r in s.get("eligibility_rules", [])[:3] if isinstance(r, dict)
                 ],
-                "documents": s.get("documents", [])[:4],
-                "application_steps": s.get("application_steps", [])[:3],
+                "documents": s.get("documents", [])[:3],
                 "official_url": s.get("url") or (s.get("sources") and s["sources"][0].get("url")),
             })
 
         eval_summary = []
         if evaluated_schemes:
-            for s in evaluated_schemes[:4]:
+            for s in evaluated_schemes[:3]:
                 s_name = s.get("scheme_name") or s.get("name")
                 verdict = s.get("eligibility_status", "unknown")
                 rule_checks = []
-                for chk in s.get("eligibility_matrix", []):
+                for chk in s.get("eligibility_matrix", [])[:4]:
                     rule_checks.append({
                         "rule": chk.get("label") or chk.get("rule_text") or f"{chk.get('field')} {chk.get('operator')} {chk.get('value')}",
                         "status": chk.get("status", "UNKNOWN"),
@@ -164,12 +163,13 @@ class ResponseGeneratorTool:
                     "overall_verdict": verdict,
                     "rule_evaluations": rule_checks,
                     "benefit": s.get("benefit") or (s.get("benefits") and s["benefits"][0]) or "Financial assistance",
-                    "documents": s.get("documents", [])[:4],
+                    "documents": s.get("documents", [])[:3],
                     "official_url": s.get("url"),
                 })
 
-        schemes_str = json.dumps(compact_schemes, ensure_ascii=False)
-        eval_str = json.dumps(eval_summary, ensure_ascii=False, indent=2)
+        # Avoid redundant serialization if eval_summary is already provided
+        schemes_str = json.dumps(compact_schemes, ensure_ascii=False) if not eval_summary else "[]"
+        eval_str = json.dumps(eval_summary, ensure_ascii=False)
         q_status_str = json.dumps(questionnaire_status, ensure_ascii=False)
         criteria_str = json.dumps(known_criteria or {}, ensure_ascii=False)
         beneficiary_str = json.dumps(beneficiary_context or {}, ensure_ascii=False)
@@ -221,14 +221,17 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
         if result and isinstance(result, dict) and "answer_markdown" in result:
             return result
 
-        logger.warning("ResponseGeneratorTool LLM call returned invalid response or hit rate limit; returning authentic service notice.")
-        unavailable_msg = generate_service_unavailable_response(target_language)
-        return {
-            "answer_markdown": unavailable_msg,
-            "key_takeaways": [
-                "Upstream AI reasoning capacity reached (Groq API Rate Limit / HTTP 429). Please retry in 30 seconds."
-            ],
-        }
+        logger.warning("ResponseGeneratorTool LLM call returned invalid response or hit rate limit; seamlessly falling back to deterministic synthesis.")
+        return self._fallback_generation(
+            user_query=user_query,
+            candidate_schemes=candidate_schemes,
+            questionnaire_status=questionnaire_status,
+            evaluated_schemes=evaluated_schemes,
+            is_evaluation_turn=is_eval,
+            known_criteria=known_criteria,
+            target_language=target_language,
+            language_name=language_name,
+        )
 
     def _fallback_generation(
         self,
@@ -417,12 +420,29 @@ Generate a helpful, empathetic, beautifully structured Markdown response for the
             else:
                 lines.append(labels["eligible"])
         else:
-            # When candidate schemes are empty and LLM is unavailable, return official localized service notice
-            unavailable_msg = generate_service_unavailable_response(target_language)
+            # When candidate schemes are empty, provide clear citizen guidance instead of a capacity error
+            not_found_msgs = {
+                "en": (
+                    "### No Directly Matching Schemes Found\n"
+                    "We could not find an exact government welfare scheme matching your query in the active index.\n\n"
+                    "**Recommended Steps:**\n"
+                    "1. Explore schemes on the national welfare repository at [myScheme Portal](https://www.myscheme.gov.in).\n"
+                    "2. Visit your nearest Common Service Centre (CSC) or District Collectorate for local/state-specific schemes.\n"
+                    "3. Try searching with broader keywords (e.g., 'farmer income support', 'post-matric scholarship', 'maternity benefit')."
+                ),
+                "hi": (
+                    "### कोई प्रत्यक्ष योजना नहीं मिली\n"
+                    "आपकी खोज के लिए सक्रिय डेटाबेस में कोई प्रत्यक्ष सरकारी योजना नहीं मिली।\n\n"
+                    "**अनुशंसित कदम:**\n"
+                    "1. राष्ट्रीय कल्याण पोर्टल [myScheme Portal](https://www.myscheme.gov.in) पर योजनाएं देखें।\n"
+                    "2. अपने नजदीकी जन सेवा केंद्र (CSC) या जिला समाज कल्याण कार्यालय से संपर्क करें।\n"
+                    "3. सामान्य शब्दों (उदा. 'छात्रवृत्ति', 'किसान सहायता') के साथ पुनः खोज करें।"
+                )
+            }
             return {
-                "answer_markdown": unavailable_msg,
+                "answer_markdown": not_found_msgs.get(target_language, not_found_msgs["en"]),
                 "key_takeaways": [
-                    spec["completed_eval_takeaway"]
+                    spec.get("completed_eval_takeaway", "Evaluation completed.")
                 ],
             }
 

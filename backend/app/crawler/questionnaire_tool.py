@@ -107,9 +107,9 @@ class QuestionnaireTool:
                 "questions": [],
             }
 
-        # Summarize candidate scheme rules
+        # Summarize candidate scheme rules compactly to avoid rate limits
         compact_schemes = []
-        for s in candidate_schemes[:4]:
+        for s in candidate_schemes[:3]:
             s_name = s.get("scheme_name") or s.get("name") or "Scheme"
             rules = s.get("eligibility_rules", [])
             guidelines = s.get("brief") or s.get("repository_summary") or ""
@@ -119,8 +119,8 @@ class QuestionnaireTool:
                 "rules": [
                     r.get("rule_text") or f"{r.get('field')} {r.get('operator')} {r.get('value')}"
                     for r in rules if isinstance(r, dict)
-                ][:10],
-                "guidelines_preview": guidelines[:400],
+                ][:4],
+                "guidelines_preview": guidelines[:120],
             })
 
         # Summarize conversation history

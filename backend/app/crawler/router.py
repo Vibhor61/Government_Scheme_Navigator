@@ -213,6 +213,30 @@ class SchemeRouter:
         Executes a single structured LLM call to route the query,
         detect Out-of-Domain, decouple beneficiaries, and extract any stated eligibility criteria.
         """
+        pref_lang = preferred_language or "auto"
+        lower_q = (user_query or "").strip().lower()
+
+        # Fast-path: For questionnaire submissions, structured profile updates, or short follow-up answers,
+        # use deterministic routing directly to preserve precious LLM rate limits for response generation.
+        is_followup_criteria_response = bool(
+            user_profile or
+            (conversation_history and len(lower_q.split()) <= 5 and any(
+                opt in lower_q for opt in [
+                    "male", "female", "urban", "rural", "yes", "no", "general", "obc", "sc", "st",
+                    "acre", "lakh", "farmer", "student", "age", "income", "karnataka", "up", "bihar",
+                    "maharashtra", "tamil", "bengal", "gujarat", "punjab", "delhi", "haryana", "rajasthan"
+                ]
+            ))
+        )
+        if is_followup_criteria_response:
+            logger.info("Fast-path: Deterministic routing for follow-up criteria turn (0 Groq tokens spent).")
+            return self._fallback_route(
+                user_query=user_query,
+                conversation_history=conversation_history,
+                user_profile=user_profile,
+                preferred_language=pref_lang,
+            )
+
         # Format recent conversation context
         history_summary = []
         for msg in (conversation_history or [])[-4:]:
@@ -223,7 +247,6 @@ class SchemeRouter:
 
         history_str = "\n".join(history_summary) if history_summary else "No prior conversation."
         profile_str = json.dumps(user_profile, ensure_ascii=False) if user_profile else "{}"
-        pref_lang = preferred_language or "auto"
 
         prompt = f"""Incoming Citizen Message: "{user_query}"
 
@@ -261,36 +284,14 @@ Analyze this message, classify the workflow, identify language and script, formu
             )
             return result
 
-        # Direct authentic notification if upstream Groq LLM is unavailable or rate limited
-        logger.warning("LLM router returned invalid response or hit capacity limit; returning transparent service notice.")
-        from .domain_guard import generate_service_unavailable_response
-        lang_info = detect_script_and_language(user_query, pref_lang)
-        detected_lang = lang_info["detected_language"]
-        return {
-            "is_out_of_domain": False,
-            "is_service_unavailable": True,
-            "service_message": generate_service_unavailable_response(detected_lang),
-            "workflow": "SERVICE_UNAVAILABLE",
-            "target_schemes": [],
-            "detected_language": detected_lang,
-            "language_name": lang_info["language_name"],
-            "script_type": lang_info["script_type"],
-            "beneficiary": {
-                "is_self": True,
-                "applicant_role": "citizen",
-                "target_description": "self",
-            },
-            "extracted_criteria": {},
-            "myscheme_search_terms": [],
-            "search_specification": {
-                "core_intent": user_query[:80],
-                "target_sector": "General Welfare",
-                "target_role": "citizen",
-                "search_queries": [],
-                "must_include_keywords": [],
-                "must_exclude_keywords": [],
-            },
-        }
+        # Seamlessly fallback to deterministic routing if LLM router returned invalid response or hit rate limit
+        logger.warning("LLM router call failed or hit rate limit; seamlessly falling back to deterministic routing engine.")
+        return self._fallback_route(
+            user_query=user_query,
+            conversation_history=conversation_history,
+            user_profile=user_profile,
+            preferred_language=pref_lang,
+        )
 
     def _fallback_route(
         self,
