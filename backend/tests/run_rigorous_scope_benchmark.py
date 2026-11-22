@@ -296,6 +296,7 @@ def run_tests():
 
         status_sym = "✅ PASS" if passed else "❌ FAIL"
         print(f"[{idx:02d}/{len(TEST_CASES)}] {status_sym} | {tc['lang'][:10]:10} | Exp: {expected:15} | Act: {actual:15} | Lat: {duration_ms:5.0f}ms | {tc['id']}")
+        time.sleep(2.0)
 
     print("\n" + "=" * 80)
     print(f"SUMMARY: Total Tests: {len(TEST_CASES)} | Passed: {len(TEST_CASES) - len(failures)} | Failed: {len(failures)}")

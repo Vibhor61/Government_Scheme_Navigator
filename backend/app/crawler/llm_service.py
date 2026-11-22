@@ -60,9 +60,8 @@ class LLMService:
     def get_ordered_api_keys(self) -> List[str]:
         """
         Returns API keys rotated round-robin for load-balancing across multiple keys.
-        Sorts so healthy keys are tried first and rate-limited keys are deprioritized.
+        Every query alternates the active key.
         """
-        now = time.time()
         with self._lock:
             if not self.api_keys:
                 return []
@@ -72,15 +71,14 @@ class LLMService:
                 self.api_keys[(self._key_index + i) % len(self.api_keys)]
                 for i in range(len(self.api_keys))
             ]
-            # Prioritize keys whose rate-limit cooldown has passed
-            ordered.sort(key=lambda k: self._rate_limited_until.get(k, 0) > now)
             return ordered
 
-    def mark_key_rate_limited(self, key: str, cooldown_seconds: float = 30.0):
-        """Temporarily marks an API key as rate-limited to immediately switch traffic to other keys."""
+    def mark_key_rate_limited(self, key: str, model: Optional[str] = None, cooldown_seconds: float = 15.0):
+        """Temporarily marks an API key + model pair as rate-limited to switch traffic to other keys/models."""
         with self._lock:
-            self._rate_limited_until[key] = time.time() + cooldown_seconds
-            logger.warning("Groq API key %s... marked rate-limited for %gs", key[:10], cooldown_seconds)
+            key_id = f"{key}:{model}" if model else key
+            self._rate_limited_until[key_id] = time.time() + cooldown_seconds
+            logger.warning("Groq API key %s... on model %s marked rate-limited for %gs", key[:10], model or "all", cooldown_seconds)
 
     def _call_groq_json(self, prompt: str, system_prompt: str, timeout: float = 14.0) -> Optional[Dict[str, Any]]:
         """Executes a JSON-mode chat completion on Groq with multi-key load balancing and model fallback."""
@@ -88,20 +86,25 @@ class LLMService:
         if not ordered_keys:
             return None
 
-        # Iterate through keys in pool (load-balanced + failover)
         # Ensure 'json' appears in messages as strictly required by Groq response_format json_object
         effective_system = system_prompt or "You are a helpful assistant."
         if "json" not in (effective_system + prompt).lower():
             effective_system = f"{effective_system}\nYou must return valid JSON only."
 
-        for api_key in ordered_keys:
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) GovSchemeAssistant/2.0"
-            }
+        now = time.time()
+        for model in self.active_models:
+            for api_key in ordered_keys:
+                key_model_id = f"{api_key}:{model}"
+                # If key is currently in cooldown for this model and another key exists, try the other key
+                if self._rate_limited_until.get(key_model_id, 0) > now and len(ordered_keys) > 1:
+                    continue
 
-            for model in self.active_models:
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) GovSchemeAssistant/2.0"
+                }
+
                 try:
                     payload = {
                         "model": model,
@@ -122,21 +125,18 @@ class LLMService:
                             except (KeyError, IndexError, TypeError, json.JSONDecodeError) as error:
                                 logger.warning("LLM returned invalid JSON from model %s: %s", model, error)
                         elif resp.status_code == 429:
-                            # Immediate model-level failover: rate limits on Groq are model-specific!
                             logger.warning(
-                                "Groq key %s... hit HTTP 429 on model %s; trying next available model...",
+                                "Groq key %s... hit HTTP 429 on model %s; switching to next key/model...",
                                 api_key[:10], model
                             )
-                            continue  # Try next model in active_models
+                            self.mark_key_rate_limited(api_key, model=model, cooldown_seconds=15.0)
+                            continue
                         else:
                             resp_text = getattr(resp, "text", "")
-                            logger.warning("LLM request to model %s returned HTTP %s: %s", model, resp.status_code, resp_text[:200])
+                            logger.warning("LLM request to model %s on key %s... returned HTTP %s: %s", model, api_key[:10], resp.status_code, resp_text[:200])
                 except httpx.HTTPError as error:
-                    logger.warning("LLM request to model %s failed: %s", model, error)
+                    logger.warning("LLM request to model %s on key %s... failed: %s", model, api_key[:10], error)
                     continue
-
-            # If all active models were rate-limited or failed on this key, mark key with short cooldown and rotate
-            self.mark_key_rate_limited(api_key, cooldown_seconds=10.0)
 
         return None
 

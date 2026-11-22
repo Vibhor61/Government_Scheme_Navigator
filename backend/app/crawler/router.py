@@ -214,28 +214,6 @@ class SchemeRouter:
         detect Out-of-Domain, decouple beneficiaries, and extract any stated eligibility criteria.
         """
         pref_lang = preferred_language or "auto"
-        lower_q = (user_query or "").strip().lower()
-
-        # Fast-path: For questionnaire submissions, structured profile updates, or short follow-up answers,
-        # use deterministic routing directly to preserve precious LLM rate limits for response generation.
-        is_followup_criteria_response = bool(
-            user_profile or
-            (conversation_history and len(lower_q.split()) <= 5 and any(
-                opt in lower_q for opt in [
-                    "male", "female", "urban", "rural", "yes", "no", "general", "obc", "sc", "st",
-                    "acre", "lakh", "farmer", "student", "age", "income", "karnataka", "up", "bihar",
-                    "maharashtra", "tamil", "bengal", "gujarat", "punjab", "delhi", "haryana", "rajasthan"
-                ]
-            ))
-        )
-        if is_followup_criteria_response:
-            logger.info("Fast-path: Deterministic routing for follow-up criteria turn (0 Groq tokens spent).")
-            return self._fallback_route(
-                user_query=user_query,
-                conversation_history=conversation_history,
-                user_profile=user_profile,
-                preferred_language=pref_lang,
-            )
 
         # Format recent conversation context
         history_summary = []
