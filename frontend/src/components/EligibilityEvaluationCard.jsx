@@ -12,8 +12,9 @@ import {
   Building2,
   Sparkles
 } from 'lucide-react';
+import { t } from '../utils/i18n';
 
-export default function EligibilityEvaluationCard({ schemes = [], isHindi = false }) {
+export default function EligibilityEvaluationCard({ schemes = [], isHindi = false, language = 'en' }) {
   const [expandedSchemes, setExpandedSchemes] = useState({});
 
   if (!schemes || schemes.length === 0) return null;
@@ -43,12 +44,10 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
           </span>
           <div>
             <h4 className="text-sm font-bold text-charcoal-900 dark:text-emerald-50">
-              {isHindi ? 'सरकारी योजना पात्रता मूल्यांकन रिपोर्ट' : 'Official Scheme Eligibility Evaluation'}
+              {t('official_scheme_evaluation_report', language)}
             </h4>
             <p className="text-[11px] text-charcoal-500 dark:text-emerald-200/80">
-              {isHindi
-                ? 'आपके द्वारा दर्ज किए गए विवरणों के आधार पर आधिकारिक नियमों का मिलान:'
-                : 'Deterministic criteria evaluation against authentic government guidelines:'}
+              {t('criteria_matching_desc', language)}
             </p>
           </div>
         </div>
@@ -56,8 +55,8 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
         {/* Summary Pill */}
         <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-3 py-1 text-xs font-bold text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
           {eligibleCount > 0
-            ? (isHindi ? `🎉 ${eligibleCount} योजना हेतु पात्र` : `🎉 Eligible for ${eligibleCount} Scheme${eligibleCount > 1 ? 's' : ''}`)
-            : (isHindi ? 'सशर्त / समीक्षाधीन' : 'Criteria Assessment Ready')}
+            ? (language === 'hi' ? `🎉 ${eligibleCount} योजना हेतु पात्र` : (language === 'kn' ? `🎉 ${eligibleCount} ಯೋಜನೆಗೆ ಅರ್ಹರು` : `🎉 ${eligibleCount} Schemes Eligible`))
+            : t('verdict_conditional', language)}
         </span>
       </div>
 
@@ -95,7 +94,7 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-charcoal-500 dark:text-charcoal-400 bg-sand-100 dark:bg-charcoal-800 px-2 py-0.5 rounded">
-                      {sLevel}
+                      {sLevel === 'Central' ? t('level_central', language) : t('level_state', language)}
                     </span>
                     {sMinistry && (
                       <span className="text-[10px] text-charcoal-500 dark:text-charcoal-400 truncate max-w-xs">
@@ -128,10 +127,10 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
                     )}
                     <span>
                       {isEligible
-                        ? (isHindi ? 'पात्र (Eligible)' : 'Eligible - Meets Criteria')
+                        ? t('verdict_eligible', language)
                         : isIneligible
-                        ? (isHindi ? 'अपात्र (Ineligible)' : 'Not Eligible')
-                        : (isHindi ? 'सशर्त / अतिरिक्त विवरण' : 'Conditional / Needs Details')}
+                        ? t('verdict_ineligible', language)
+                        : t('verdict_conditional', language)}
                     </span>
                   </span>
 
@@ -150,7 +149,7 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
               <div className="mt-3 flex items-start gap-2.5 rounded-lg bg-emerald-50/70 p-2.5 text-xs text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100 border border-emerald-100 dark:border-emerald-900/40">
                 <Coins className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">{isHindi ? 'पात्रता लाभ व वित्तीय सहायता:' : 'Entitlement & Financial Assistance:'} </span>
+                  <span className="font-bold">{t('entitlement_financial_assistance', language)} </span>
                   <span>{sBenefit}</span>
                 </div>
               </div>
@@ -159,9 +158,9 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
               {isExpanded && rules.length > 0 && (
                 <div className="mt-3.5 space-y-2">
                   <div className="flex items-center justify-between text-[11px] font-semibold text-charcoal-500 dark:text-charcoal-400">
-                    <span>{isHindi ? 'मापदंड सत्यापन विवरण (Criteria Breakdown):' : 'Criteria Verification Breakdown:'}</span>
+                    <span>{t('criteria_breakdown_label', language)}</span>
                     <span className="text-emerald-700 dark:text-emerald-400 font-bold">
-                      {metRulesCount}/{totalRulesCount} {isHindi ? 'सत्यापित' : 'Passed'}
+                      {metRulesCount}/{totalRulesCount} {t('status_passed', language)}
                     </span>
                   </div>
 
@@ -195,7 +194,7 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
                             {rLabel}
                           </span>
                           <span className="text-[10px] font-bold uppercase tracking-wider shrink-0 opacity-80">
-                            {isMet ? 'Passed' : isNotMet ? 'Failed' : 'Pending'}
+                            {isMet ? t('status_passed', language) : isNotMet ? t('status_failed', language) : t('status_pending', language)}
                           </span>
                         </div>
                       );
@@ -210,7 +209,7 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
                   <div className="flex items-center gap-1.5 text-[11px] text-charcoal-500 dark:text-charcoal-400">
                     <FileText className="h-3.5 w-3.5 text-charcoal-400 shrink-0" />
                     <span className="truncate max-w-xs">
-                      {isHindi ? 'दस्तावेज: ' : 'Required: '}
+                      {t('required_docs_label', language)}
                       {scheme.documents.slice(0, 3).join(', ')}
                     </span>
                   </div>
@@ -222,7 +221,7 @@ export default function EligibilityEvaluationCard({ schemes = [], isHindi = fals
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 dark:bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 dark:hover:bg-emerald-500 transition ml-auto"
                 >
-                  <span>{isHindi ? 'आधिकारिक पोर्टल पर आवेदन करें' : 'Apply on Official Portal'}</span>
+                  <span>{t('apply_official_portal', language)}</span>
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>

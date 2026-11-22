@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bookmark, Sparkles, Trash2, ArrowRight } from 'lucide-react';
 import SchemeBentoCard from './SchemeBentoCard';
+import { t } from '../utils/i18n';
 
 export default function SavedSchemesView({
   savedSchemes = [],
@@ -18,15 +19,13 @@ export default function SavedSchemesView({
         <div className="mb-8">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-forest-200 bg-forest-50 px-3 py-1 text-xs font-semibold text-forest-800 dark:border-forest-800 dark:bg-forest-950 dark:text-emerald-300 mb-2">
             <Bookmark className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
-            <span>{isHindi ? 'सहेजी गई सूची' : 'Saved Collection'}</span>
+            <span>{t('saved_collection', language)}</span>
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-charcoal-900 dark:text-sand-50 sm:text-3xl">
-            {isHindi ? 'सहेजी गई सरकारी योजनाएं' : 'Saved Government Schemes'}
+            {t('saved_schemes_heading', language)}
           </h2>
           <p className="mt-1.5 text-sm text-charcoal-500 dark:text-charcoal-300 max-w-2xl">
-            {isHindi
-              ? 'आपकी बुकमार्क की गई योजनाएं यहां सुरक्षित हैं ताकि आप कभी भी पात्रता व आवेदन स्थिति देख सकें।'
-              : 'Your bookmarked welfare programs are stored here for easy reference, document checklists, and application links.'}
+            {t('saved_schemes_desc', language)}
           </p>
         </div>
 
@@ -36,19 +35,17 @@ export default function SavedSchemesView({
               <Bookmark className="h-6 w-6" />
             </div>
             <h3 className="text-sm font-semibold text-charcoal-800 dark:text-sand-50">
-              {isHindi ? 'कोई सहेजी गई योजना नहीं' : 'No saved schemes yet'}
+              {t('no_saved_schemes', language)}
             </h3>
             <p className="mt-1 text-xs text-charcoal-500 dark:text-charcoal-400 max-w-md mx-auto">
-              {isHindi
-                ? 'योजनाएं खोजते समय या AI चैट में बुकमार्क आइकन पर क्लिक करके योजनाओं को यहां सहेजें।'
-                : 'Bookmark schemes while browsing the catalog or chatting with JanSahayak AI to quickly access them later.'}
+              {t('no_saved_schemes_desc', language)}
             </p>
             {onNavigateToDiscover && (
               <button
                 onClick={onNavigateToDiscover}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-forest-600 dark:bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-subtle hover:bg-forest-700 dark:hover:bg-emerald-500 transition"
               >
-                <span>{isHindi ? 'योजनाएं खोजें' : 'Discover Schemes'}</span>
+                <span>{t('nav_discover', language)}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
@@ -63,6 +60,7 @@ export default function SavedSchemesView({
                 onToggleBookmark={onToggleBookmark}
                 isBookmarked={true}
                 isHindi={isHindi}
+                language={language}
               />
             ))}
           </div>

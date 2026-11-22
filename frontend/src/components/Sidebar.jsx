@@ -15,6 +15,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { t } from '../utils/i18n';
 
 export default function Sidebar({
   activeView,
@@ -34,31 +35,31 @@ export default function Sidebar({
   onOpenHelp,
   onOpenAbout
 }) {
-  const isHindi = language === 'hi';
   const isDark = theme === 'dark';
+  const isHindi = language === 'hi';
 
   const navItems = [
     {
       id: 'chat',
-      label: isHindi ? 'योजना मार्गदर्शक' : 'Benefit navigator',
+      label: t('nav_chat', language),
       icon: Sparkles,
       badge: null,
     },
     {
       id: 'discover',
-      label: isHindi ? 'योजनाएं खोजें' : 'Discover Schemes',
+      label: t('nav_discover', language),
       icon: Compass,
       badge: null,
     },
     {
       id: 'eligibility',
-      label: isHindi ? 'पात्रता जांच' : 'Check Eligibility',
+      label: t('nav_eligibility', language),
       icon: CheckCircle,
       badge: null,
     },
     {
       id: 'saved',
-      label: isHindi ? 'सहेजी गई योजनाएं' : 'Saved Schemes',
+      label: t('nav_saved', language),
       icon: Bookmark,
       badge: savedSchemesCount > 0 ? savedSchemesCount : null,
     },
@@ -96,7 +97,7 @@ export default function Sidebar({
                 </span>
               </div>
               <p className="text-[11px] font-medium text-charcoal-500 dark:text-charcoal-400">
-                {isHindi ? 'राष्ट्रीय कल्याण साथी' : 'National Welfare AI'}
+                {t('portal_subtitle', language)}
               </p>
             </div>
           </div>
@@ -120,7 +121,7 @@ export default function Sidebar({
             className="group flex w-full items-center justify-center gap-2 rounded-xl bg-forest-600 px-4 py-2.5 text-xs font-semibold text-white shadow-subtle transition-all duration-150 hover:bg-forest-700 active:scale-[0.99] dark:bg-emerald-700 dark:hover:bg-emerald-600"
           >
             <Plus className="h-4 w-4 transition-transform group-hover:rotate-90" />
-            <span>{isHindi ? 'नई बातचीत शुरू करें' : 'New conversation'}</span>
+            <span>{t('btn_new_chat', language)}</span>
           </button>
         </div>
 
@@ -162,14 +163,14 @@ export default function Sidebar({
         <div className="flex-1 overflow-y-auto px-3 py-3">
           <div className="mb-2 flex items-center justify-between px-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-charcoal-400 dark:text-charcoal-500">
-              {isHindi ? 'हालिया बातचीत' : 'Recent conversations'}
+              {t('recent_conversations', language)}
             </span>
           </div>
 
           {conversations.length === 0 ? (
             <div className="px-2 py-4 text-center">
               <p className="text-xs text-charcoal-400 dark:text-charcoal-500">
-                {isHindi ? 'कोई पूर्व बातचीत नहीं' : 'No previous conversations'}
+                {t('no_conversations', language)}
               </p>
             </div>
           ) : (
@@ -231,7 +232,7 @@ export default function Sidebar({
                 ) : (
                   <Moon className="h-3.5 w-3.5 text-charcoal-500" />
                 )}
-                <span>{isDark ? (isHindi ? 'थीम: डार्क' : 'Theme: Dark') : (isHindi ? 'थीम: लाइट' : 'Theme: Light')}</span>
+                <span>{t(isDark ? 'theme_dark' : 'theme_light', language)}</span>
               </div>
               <span className="text-[10px] font-semibold uppercase text-charcoal-400 dark:text-charcoal-500">
                 {isDark ? 'Switch to Light' : 'Switch to Dark'}
@@ -244,7 +245,7 @@ export default function Sidebar({
             <div className="flex items-center justify-between mb-1.5 px-0.5">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-charcoal-700 dark:text-charcoal-300">
                 <Globe className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'भाषा चुनें' : 'Language / भाषा'}</span>
+                <span>{t('select_language', language)}</span>
               </div>
               <span className="text-[10px] uppercase font-bold text-forest-700 dark:text-emerald-400">
                 {language.toUpperCase()}
@@ -265,6 +266,7 @@ export default function Sidebar({
               <option value="ta">🇮🇳 தமிழ் (Tamil)</option>
               <option value="te">🇮🇳 తెలుగు (Telugu)</option>
               <option value="gu">🇮🇳 ગુજરાતી (Gujarati)</option>
+              <option value="pa">🇮🇳 ਪੰਜਾਬੀ (Punjabi)</option>
             </select>
           </div>
 
@@ -272,9 +274,7 @@ export default function Sidebar({
           <div className="flex items-center gap-2 rounded-lg bg-forest-50/60 px-2.5 py-2 text-[11px] text-forest-900 dark:bg-forest-950/40 dark:text-emerald-300 dark:border dark:border-forest-900/60">
             <ShieldCheck className="h-4 w-4 shrink-0 text-forest-600 dark:text-emerald-400" />
             <span className="leading-tight">
-              {isHindi
-                ? 'myScheme एवं *.gov.in पोर्टल्स से सत्यापित'
-                : 'Verified via myScheme & *.gov.in portals'}
+              {t('verified_myscheme', language)}
             </span>
           </div>
 
@@ -284,14 +284,14 @@ export default function Sidebar({
               onClick={onOpenHelp}
               className="hover:text-charcoal-700 dark:hover:text-sand-200 transition"
             >
-              {isHindi ? 'मदद' : 'Help'}
+              {t('help', language)}
             </button>
             <span>•</span>
             <button
               onClick={onOpenAbout}
               className="hover:text-charcoal-700 dark:hover:text-sand-200 transition"
             >
-              {isHindi ? 'परिचय' : 'About'}
+              {t('about', language)}
             </button>
             <span>•</span>
             <a

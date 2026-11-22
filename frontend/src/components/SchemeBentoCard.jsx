@@ -8,13 +8,15 @@ import {
   MapPin,
   Coins
 } from 'lucide-react';
+import { t, getLocalizedCategory } from '../utils/i18n';
 
 export default function SchemeBentoCard({
   scheme,
   onAskAi,
   onToggleBookmark,
   isBookmarked = false,
-  isHindi = false
+  isHindi = false,
+  language = 'en'
 }) {
   if (!scheme) return null;
 
@@ -41,10 +43,10 @@ export default function SchemeBentoCard({
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="rounded-md bg-forest-50 px-2 py-0.5 text-[10px] font-bold text-forest-700 border border-forest-100 dark:bg-forest-950/80 dark:text-emerald-300 dark:border-forest-800/80">
-              {level === 'Central' ? (isHindi ? 'केंद्रीय' : 'Central') : state}
+              {level === 'Central' ? t('level_central', language) : state}
             </span>
             <span className="rounded-md bg-sand-100 px-2 py-0.5 text-[10px] font-semibold text-charcoal-600 dark:bg-charcoal-800 dark:text-charcoal-300">
-              {category}
+              {getLocalizedCategory(category, language)}
             </span>
           </div>
 
@@ -101,7 +103,7 @@ export default function SchemeBentoCard({
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-forest-700 hover:text-forest-800 transition dark:text-emerald-400 dark:hover:text-emerald-300"
           >
             <Sparkles className="h-3 w-3" />
-            <span>{isHindi ? 'पात्रता व आवेदन पूछें' : 'Check Eligibility & Details'}</span>
+            <span>{t('check_eligibility_details', language)}</span>
           </button>
         )}
 

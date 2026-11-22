@@ -6,6 +6,7 @@ import DiscoverSchemesView from './components/DiscoverSchemesView';
 import CheckEligibilityView from './components/CheckEligibilityView';
 import SavedSchemesView from './components/SavedSchemesView';
 import { HelpModal, AboutModal } from './components/InfoModals';
+import { t } from './utils/i18n';
 
 const readStoredConversations = () => {
   try {
@@ -156,10 +157,10 @@ export default function App() {
   };
 
   const getPageTitle = () => {
-    if (activeView === 'discover') return language === 'hi' ? 'योजनाएं खोजें' : 'Discover Schemes';
-    if (activeView === 'eligibility') return language === 'hi' ? 'पात्रता जांच' : 'Check Eligibility';
-    if (activeView === 'saved') return language === 'hi' ? 'सहेजी गई योजनाएं' : 'Saved Schemes';
-    return language === 'hi' ? 'योजना मार्गदर्शक' : 'Benefit navigator';
+    if (activeView === 'discover') return t('nav_discover', language);
+    if (activeView === 'eligibility') return t('nav_eligibility', language);
+    if (activeView === 'saved') return t('nav_saved', language);
+    return t('nav_chat', language);
   };
 
   const activeConversation = conversations.find(item => item.id === activeConversationId);

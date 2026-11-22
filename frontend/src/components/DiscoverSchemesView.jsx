@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { fetchSchemesCatalog } from '../services/api';
 import SchemeBentoCard from './SchemeBentoCard';
+import { t } from '../utils/i18n';
 
 export default function DiscoverSchemesView({
   onAskAi,
@@ -29,13 +30,13 @@ export default function DiscoverSchemesView({
   const [isLoading, setIsLoading] = useState(true);
 
   const categories = [
-    { id: 'All', label: isHindi ? 'सभी श्रेणियां' : 'All Categories' },
-    { id: 'Agriculture', label: isHindi ? 'कृषि एवं किसान' : 'Agriculture' },
-    { id: 'Education', label: isHindi ? 'शिक्षा एवं छात्रवृत्ति' : 'Education' },
-    { id: 'Business & Entrepreneurship', label: isHindi ? 'व्यापार व ऋण' : 'Business & Loans' },
-    { id: 'Health & Wellness', label: isHindi ? 'स्वास्थ्य एवं बीमा' : 'Health' },
-    { id: 'Energy & Environment', label: isHindi ? 'सौर व स्वच्छ ऊर्जा' : 'Energy & Solar' },
-    { id: 'Social Welfare & Empowerment', label: isHindi ? 'महिला व सामाजिक कल्याण' : 'Social Welfare' }
+    { id: 'All', label: t('cat_all', language) },
+    { id: 'Agriculture', label: t('cat_agriculture', language) },
+    { id: 'Education', label: t('cat_education', language) },
+    { id: 'Business & Entrepreneurship', label: t('cat_business', language) },
+    { id: 'Health & Wellness', label: t('cat_health', language) },
+    { id: 'Energy & Environment', label: t('cat_energy', language) },
+    { id: 'Social Welfare & Empowerment', label: t('cat_pension', language) }
   ];
 
   useEffect(() => {
@@ -95,15 +96,13 @@ export default function DiscoverSchemesView({
         <div className="mb-8">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-forest-200 dark:border-forest-800/60 bg-forest-50 dark:bg-forest-950/40 px-3 py-1 text-xs font-semibold text-forest-800 dark:text-forest-300 mb-2">
             <Layers className="h-3.5 w-3.5 text-forest-600 dark:text-forest-400" />
-            <span>{isHindi ? 'आधिकारिक रिपॉजिटरी निर्देशिका' : 'Official Schemes Repository'}</span>
+            <span>{t('portal_subtitle', language)}</span>
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-charcoal-900 dark:text-sand-50 sm:text-3xl">
-            {isHindi ? 'सरकारी योजनाएं खोजें' : 'Discover Government Schemes'}
+            {t('nav_discover', language)}
           </h2>
           <p className="mt-1.5 text-sm text-charcoal-500 dark:text-sand-400 max-w-2xl">
-            {isHindi
-              ? 'केंद्रीय और राज्य सरकारों द्वारा संचालित योजनाओं का अन्वेषण करें, पात्रता नियम समझें और सीधे आवेदन करें।'
-              : 'Browse flagship Central and State welfare programs, check eligibility requirements, and evaluate with JanSahayak AI.'}
+            {t('hero_subtitle', language)}
           </p>
         </div>
 
@@ -117,7 +116,7 @@ export default function DiscoverSchemesView({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={isHindi ? 'योजना का नाम या उद्देश्य खोजें...' : 'Search by scheme name, keywords, or ministry...'}
+                placeholder={t('input_placeholder', language)}
                 className="w-full rounded-xl border border-border dark:border-[#273B30] bg-sand-50/50 dark:bg-[#15201A] pl-10 pr-4 py-2 text-xs font-medium text-charcoal-900 dark:text-sand-50 placeholder:text-charcoal-400 dark:placeholder:text-sand-400/50 focus:border-forest-600 focus:bg-white dark:focus:bg-[#192720] focus:outline-none focus:ring-1 focus:ring-forest-600"
               />
             </div>
@@ -134,7 +133,7 @@ export default function DiscoverSchemesView({
                       : 'text-charcoal-500 dark:text-sand-400 hover:text-charcoal-900 dark:hover:text-sand-100'
                   }`}
                 >
-                  {lvl === 'All' ? (isHindi ? 'सभी स्तर' : 'All') : lvl === 'Central' ? (isHindi ? 'केंद्रीय' : 'Central') : (isHindi ? 'राज्य' : 'State')}
+                  {lvl === 'All' ? t('level_all', language) : lvl === 'Central' ? t('level_central', language) : t('level_state', language)}
                 </button>
               ))}
             </div>
@@ -161,9 +160,7 @@ export default function DiscoverSchemesView({
         {/* Results Counter */}
         <div className="mb-4 flex items-center justify-between text-xs text-charcoal-500 dark:text-sand-400">
           <span>
-            {isHindi
-              ? `${filteredSchemes.length} योजनाएं प्रदर्शित`
-              : `Showing ${filteredSchemes.length} government schemes`}
+            {`${filteredSchemes.length} ${t('showing_schemes', language)}`}
           </span>
           {searchTerm && (
             <button
@@ -174,7 +171,7 @@ export default function DiscoverSchemesView({
               }}
               className="text-forest-700 dark:text-emerald-400 hover:underline font-semibold"
             >
-              {isHindi ? 'फ़िल्टर हटाएं' : 'Clear filters'}
+              {t('clear_filters', language)}
             </button>
           )}
         </div>
@@ -187,10 +184,10 @@ export default function DiscoverSchemesView({
         ) : filteredSchemes.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border dark:border-[#22332A] bg-white dark:bg-[#111A15] p-12 text-center">
             <p className="text-sm font-semibold text-charcoal-800 dark:text-sand-100">
-              {isHindi ? 'कोई योजना नहीं मिली' : 'No matching schemes found'}
+              {t('no_matching_schemes', language)}
             </p>
             <p className="mt-1 text-xs text-charcoal-500 dark:text-sand-400">
-              {isHindi ? 'कृपया अन्य खोज शब्द या फ़िल्टर का चयन करें।' : 'Try adjusting your search terms or filter criteria.'}
+              {t('adjust_filters_hint', language)}
             </p>
           </div>
         ) : (
@@ -203,6 +200,7 @@ export default function DiscoverSchemesView({
                 onToggleBookmark={onToggleBookmark}
                 isBookmarked={isBookmarked(scheme)}
                 isHindi={isHindi}
+                language={language}
               />
             ))}
           </div>

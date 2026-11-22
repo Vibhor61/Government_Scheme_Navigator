@@ -173,7 +173,7 @@ OUT_OF_DOMAIN_PATTERNS = [
     r"\b(?:buy\s*(?:shoes|iphone|samsung|laptop|phone|tv|car|bike|watch|clothes)\s*online|amazon|flipkart|best\s*(?:smartphone|camera|headphones|laptop)\s*under|discount\s*coupon|promo\s*code|crypto|bitcoin|ethereum|share\s*market|stock\s*price)\b",
     
     # Personal chit-chat, jokes, riddles, flirts, weather
-    r"\b(?:tell\s*(?:me\s*)?(?:a\s*)?joke|tell\s*(?:me\s*)?(?:a\s*)?story|poem|write\s*(?:a\s*)?poem|riddle|are\s*you\s*(?:human|real|alive|robot)|do\s*you\s*love\s*me|marry\s*me|who\s*made\s*you|flirt|weather\s*(?:in|today|tomorrow|forecast))\b",
+    r"\b(?:tell\s*(?:me\s*)?(?:[\w\s]{0,15})?joke|jokes|tell\s*(?:me\s*)?(?:[\w\s]{0,15})?story|poem|write\s*(?:a\s*)?poem|riddle|are\s*you\s*(?:human|real|alive|robot)|do\s*you\s*love\s*me|marry\s*me|who\s*made\s*you|flirt|weather\s*(?:in|today|tomorrow|forecast))\b",
     
     # World trivia, non-government history/geography
     r"\b(?:capital\s*of\s*(?!india\b)[a-z]+|who\s*was\s*(?:napoleon|einstein|shakespeare|alexander|hitler|columbus)|who\s*invented|speed\s*of\s*light|how\s*far\s*is\s*(?:the\s*)?(?:moon|sun|mars)|distance\s*to|explain\s*photosynthesis)\b",
@@ -188,7 +188,10 @@ OUT_OF_DOMAIN_PATTERNS = [
     r"\b(?:what\s+(?:tablet|medicine|\w+\s+tablet|\w+\s+medicine|tablet\s+or\s+medicine)|what\s+medicine\s+should\s+i\s+take|prescription|pain\s+relief\s+tablet|should\s+i\s+take\s+(?:for|to)|cure\s+my\s+(?:fever|pain|cough)|paining\s+severely|symptom\s+of\s+cancer|diagnose\s+my|fever\s+tablet|headache\s+medicine)\b",
 
     # Criminal law, police FIR registration, and civil property boundary disputes
-    r"\b(?:police\s*(?:station|thana)?\s*(?:mein\s*)?fir|file\s*(?:a\s*)?police\s*fir|file\s*(?:an\s*)?fir|एफआईआर\s*(?:कैसे\s*)?दर्ज|पुलिस\s*थाना\s*में\s*एफआईआर|court\s*case\s*against|hire\s*(?:a\s*)?lawyer)\b"
+    r"\b(?:police\s*(?:station|thana)?\s*(?:mein\s*)?fir|file\s*(?:a\s*)?police\s*fir|file\s*(?:an\s*)?fir|एफआईआर\s*(?:कैसे\s*)?दर्ज|पुलिस\s*थाना\s*में\s*एफआईआर|court\s*case\s*against|hire\s*(?:a\s*)?lawyer)\b",
+
+    # Routine civic administration, licensing, and regulatory compliance (not welfare benefits)
+    r"(?:passport\s*(?:seva|slot|appointment|office|psk)|rto\s*(?:office|test|slot|driving\s*license|license\s*test)|driving\s*test\s*slot|traffic\s*(?:police\s*)?(?:e-?challan|challan)|ई-?चालान|చలాన్|ಚಲನ್|চালান|ચલાન|ਚਲਾਨ|சலான்|चलान|itr-?[1-4]|income\s*tax\s*(?:return|filing|form)|file\s*(?:my\s*)?itr|24\s*carat\s*sone|sone\s*ka\s*bhav|सोने\s*का\s*भाव|સોનાના\s*ભાવ|ಬಂಗಾರದ\s*ಬೆಲೆ|ಚಿನ್ನದ\s*ಬೆಲೆ|সোনার\s*দাম|தங்க\s*விலை|బంగారం\s*ధర|ਸੋਨੇ\s*ਦਾ\s*ਭਾਅ|સોનું|gold\s*rate|bullion\s*price|doctor\s*appointment\s*booking|hospital\s*opd\s*booking|cardiologist\s*doctor\s*ki\s*appointment)\b"
 ]
 
 # Prompt injection & jailbreak patterns (English & Indic)
@@ -341,7 +344,8 @@ def check_domain_guard(
     query: str,
     user_clarification: Optional[str] = None,
     conversation_history: Optional[List[Dict[str, Any]]] = None,
-    user_profile: Optional[Dict[str, Any]] = None
+    user_profile: Optional[Dict[str, Any]] = None,
+    lang_code: Optional[str] = "en"
 ) -> Tuple[str, Optional[str]]:
     """
     Evaluates incoming query across 5 security and domain guard levels:
@@ -422,7 +426,7 @@ def check_domain_guard(
             break
 
     if matched_ood:
-        return "OUT_OF_DOMAIN", generate_ood_refusal(cleaned)
+        return "OUT_OF_DOMAIN", generate_ood_refusal(cleaned, lang_code=lang_code)
 
     # All genuine citizen queries pass to Stage 2 Semantic LLM Router,
     # which natively understands intent, context, and multi-lingual semantics
@@ -509,6 +513,59 @@ def generate_injection_refusal() -> str:
     )
 
 
+def generate_service_unavailable_response(lang_code: Optional[str] = "en") -> str:
+    """Returns official service unavailable notice in the citizen's native language specifying AI rate limit."""
+    code = (lang_code or "en").lower().strip()
+    messages = {
+        "hi": (
+            "⚠️ **AI सेवा दर सीमा (Groq API Rate Limit)**\n\n"
+            "जन सहायक अपस्ट्रीम AI सेवा (Groq API) की दर सीमा / क्षमता (HTTP 429) पर पहुँच गया है। "
+            "लाइव योजना मूल्यांकन अस्थायी रूप से रुका हुआ है। कृपया 30 सेकंड बाद पुनः प्रयास करें।"
+        ),
+        "bn": (
+            "⚠️ **এআই পরিষেবা সীমা (Groq API Rate Limit)**\n\n"
+            "জন সহায়ক আপস্ট্রিম এআই পরিষেবা (Groq API) ব্যবহারের ক্ষমতায় পৌঁছেছে (HTTP 429)। "
+            "অনুগ্রহ করে ৩০ সেকেন্ড পর আবার চেষ্টা করুন।"
+        ),
+        "kn": (
+            "⚠️ **AI ಸೇವಾ ದರ ಮಿತಿ (Groq API Rate Limit)**\n\n"
+            "ಜನ ಸಹಾಯಕ ಅಪ್‌ಸ್ಟ್ರೀಮ್ AI ಸೇವೆಯು (Groq API) ಸಾಮರ್ಥ್ಯದ ಮಿತಿಯನ್ನು ತಲುಪಿದೆ (HTTP 429). "
+            "ದಯವಿಟ್ಟು 30 ಸೆಕೆಂಡುಗಳ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+        ),
+        "mr": (
+            "⚠️ **AI सेवा मर्यादा (Groq API Rate Limit)**\n\n"
+            "जन सहाय्यक अपस्ट्रीम AI सेवा (Groq API) मर्यादा गाठली आहे (HTTP 429). "
+            "कृपया ३० सेकंदांनंतर पुन्हा प्रयत्न करा."
+        ),
+        "ta": (
+            "⚠️ **AI சேவை வரம்பு (Groq API Rate Limit)**\n\n"
+            "ஜன் சஹாயக் அப்ஸ்ட்ரீம் AI சேவை (Groq API) பயன்பாட்டு வரம்பை எட்டியுள்ளது (HTTP 429). "
+            "தயவுசெய்து 30 விநாடிகளுக்குப் பிறகு மீண்டும் முயற்சிக்கவும்."
+        ),
+        "te": (
+            "⚠️ **AI సేవా పరిమితి (Groq API Rate Limit)**\n\n"
+            "జన సహాయక్ అప్‌స్ట్రీమ్ AI సేవ (Groq API) వినియోగ పరిమితికి చేరుకుంది (HTTP 429). "
+            "దయచేసి 30 సెకన్ల తర్వాత మళ్లీ ప్రయత్నించండి."
+        ),
+        "gu": (
+            "⚠️ **AI સેવા મર્યાદા (Groq API Rate Limit)**\n\n"
+            "જન સહાયક અપસ્ટ્રીમ AI સેવા (Groq API) તેની ક્ષમતા મર્યાદાએ પહોંચી ગઈ છે (HTTP 429). "
+            "કૃપા કરીને ૩૦ સેકન્ડ પછી ફરી પ્રયાસ કરો."
+        ),
+        "pa": (
+            "⚠️ **AI ਸੇਵਾ ਸੀਮਾ (Groq API Rate Limit)**\n\n"
+            "ਜਨ ਸਹਾਇਕ ਅੱਪਸਟ੍ਰੀਮ AI ਸੇਵਾ (Groq API) ਸਮਰੱਥਾ ਸੀਮਾ 'ਤੇ ਪਹੁੰਚ ਗਈ ਹੈ (HTTP 429)। "
+            "ਕਿਰਪਾ ਕਰਕੇ 30 ਸਕਿੰਟਾਂ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+        ),
+        "en": (
+            "⚠️ **AI Service Capacity Notice (Groq API HTTP 429)**\n\n"
+            "Jan Sahayak reached the upstream AI reasoning capacity limit (Groq API Rate Limit / HTTP 429). "
+            "Live scheme reasoning is temporarily paused. Please retry in 30 seconds."
+        )
+    }
+    return messages.get(code, messages["en"])
+
+
 def generate_greeting_response(is_hindi: bool = False) -> str:
     """Returns official warm greeting and capability overview."""
     if is_hindi:
@@ -545,11 +602,97 @@ def generate_greeting_response(is_hindi: bool = False) -> str:
     )
 
 
-def generate_ood_refusal(user_query: str, is_hindi: bool = False) -> str:
-    """Returns official out-of-domain scope restriction notice."""
+def generate_ood_refusal(user_query: str, is_hindi: bool = False, lang_code: Optional[str] = None) -> str:
+    """Returns official out-of-domain scope restriction notice in the target citizen language."""
     escaped_query = user_query[:100].replace("*", "").replace("`", "")
-    if is_hindi:
-        return (
+    code = (lang_code or ("hi" if is_hindi else "en")).lower().strip()
+
+    ood_templates = {
+        "kn": (
+            f"⚠️ **ವ್ಯಾಪ್ತಿ ಮಿತಿ ಸೂಚನೆ (Scope Boundary Notice)**\n\n"
+            f"ಕ್ಷಮಿಸಿ, ನಿಮ್ಮ ಪ್ರಶ್ನೆ (*\"{escaped_query}\"*) ಸರ್ಕಾರಿ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳ ವ್ಯಾಪ್ತಿಯಿಂದ ಹೊರಗಿದೆ. "
+            f"ನಾನು ಭಾರತ ಸರ್ಕಾರದ (ಕೇಂದ್ರ ಹಾಗೂ ರಾಜ್ಯ) ಅಧಿಕೃತ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳು, ಸಹಾಯಧನಗಳು, ವಿದ್ಯಾರ್ಥಿವೇತನ, "
+            f"ಮತ್ತು ನಾಗರಿಕ ಅರ್ಹತೆಗಳ ಬಗ್ಗೆ ಮಾತ್ರ ಅಧಿಕೃತ ಮಾಹಿತಿ ನೀಡಲು ಸಮರ್ಥನಾಗಿದ್ದೇನೆ.\n\n"
+            f"**ದಯವಿಟ್ಟು ಸರ್ಕಾರಿ ಯೋಜನೆಗಳಿಗೆ ಸಂಬಂಧಿಸಿದ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ:**\n"
+            f"- 🌾 *ಪಿಎಂ-ಕಿಸಾನ್ ಸಮ್ಮಾನ್ ನಿಧಿ ಸಹಾಯಧನ*\n"
+            f"- 🎓 *ಕಾಲೇಜು ವಿದ್ಯಾರ್ಥಿಗಳಿಗೆ ಕೇಂದ್ರ ಹಾಗೂ ರಾಜ್ಯ ವಿದ್ಯಾರ್ಥಿವೇತನಗಳು*\n"
+            f"- 🏥 *ಆಯುಷ್ಮಾನ್ ಭಾರತ್ ಉಚಿತ ಚಿಕಿತ್ಸಾ ಕಾರ್ಡ್*\n"
+            f"- 💼 *ಸಣ್ಣ ಉದ್ಯಮಕ್ಕೆ ಮುದ್ರಾ ಸಾಲ ಯೋಜನೆಗಳು*\n"
+            f"- ⚡ *ಪಿಎಂ ಸೂರ್ಯ ಘರ್ ಸೋಲಾರ್ ರೂಫ್‌ಟಾಪ್ ಸಬ್ಸಿಡಿ*"
+        ),
+        "bn": (
+            f"⚠️ **আওতা বহির্ভূত বিজ্ঞপ্তি (Scope Boundary Notice)**\n\n"
+            f"দুঃখিত, আপনার প্রশ্নটি (*\"{escaped_query}\"*) সরকারি কল্যাণ প্রকল্পের আওতার বাইরে। "
+            f"আমি শুধুমাত্র ভারত সরকার এবং রাজ্য সরকারগুলির কল্যাণমূলক প্রকল্প, বৃত্তি, ভর্তুকি, ঋণ "
+            f"এবং নাগরিক যোগ্যতার বিষয়ে সহায়তা প্রদান করতে পারি।\n\n"
+            f"**অনুগ্রহ করে সরকারি প্রকল্প সম্পর্কিত প্রশ্ন জিজ্ঞাসা করুন:**\n"
+            f"- 🌾 *পিএম-কিসান সম্মান নিধি যোজনা*\n"
+            f"- 🎓 *উচ্চশিক্ষার জন্য সরকারি স্কলারশিপ ও অনুদান*\n"
+            f"- 🏥 *আয়ুষ্মান ভারত স্বাস্থ্য কার্ড ও বিনামূল্যে চিকিৎসা*\n"
+            f"- 💼 *নতুন ব্যবসার জন্য মুদ্রা লোন*\n"
+            f"- ⚡ *পিএম সূর্য ঘর সোলার প্যানেল ভর্তুকি*"
+        ),
+        "ta": (
+            f"⚠️ **வரம்பு அறிவிப்பு (Scope Boundary Notice)**\n\n"
+            f"மன்னிக்கவும், உங்கள் கேள்வி (*\"{escaped_query}\"*) அரசு நலத்திட்டங்களின் வரம்பிற்கு அப்பாற்பட்டது. "
+            f"நான் மத்திய மற்றும் மாநில அரசுகளின் அதிகாரப்பூர்வ நலத்திட்டங்கள், உதவித்தொகைகள், மானியங்கள் "
+            f"மற்றும் தகுதிகள் குறித்து மட்டுமே வழிகாட்ட முடியும்.\n\n"
+            f"**தயவுசெய்து அரசு திட்டங்கள் சார்ந்த கேள்விகளைக் கேளுங்கள்:**\n"
+            f"- 🌾 *பிஎம்-கிசான் நிதி உதவி மற்றும் விவசாய மானியங்கள்*\n"
+            f"- 🎓 *கல்வி உதவித்தொகை மற்றும் கல்வி கடன்கள்*\n"
+            f"- 🏥 *ஆயுஷ்மான் பாரத் மருத்துவ காப்பீடு திட்டம்*\n"
+            f"- 💼 *சிறு வணிகத்திற்கான முத்ரா கடன் திட்டம்*\n"
+            f"- ⚡ *சூரிய மின்சக்தி மானிய திட்டம்*"
+        ),
+        "te": (
+            f"⚠️ **పరిధి మించిన నోటీసు (Scope Boundary Notice)**\n\n"
+            f"క్షమించండి, మీ ప్రశ్న (*\"{escaped_query}\"*) ప్రభుత్వ సంక్షేమ పథకాల పరిధికి వెలుపల ఉంది. "
+            f"నేను కేంద్ర మరియు రాష్ట్ర ప్రభుత్వాల సంక్షేమ పథకాలు, సబ్సిడీలు, స్కాలర్‌షిప్‌లు "
+            f"మరియు పౌర అర్హతల గురించి మాత్రమే మార్గదర్శనం చేయగలను.\n\n"
+            f"**దయచేసి ప్రభుత్వ పథకాలకు సంబంధించిన ప్రశ్నలను అడగండి:**\n"
+            f"- 🌾 *పీఎం-కిసాన్ సమ్మాన్ నిధి ఆర్థిక సాయం*\n"
+            f"- 🎓 *విద్యార్థుల కోసం ఉపకార వేతనాలు (స్కాలర్‌షిప్‌లు)*\n"
+            f"- 🏥 *ఆయుష్మాన్ భారత్ ఉచిత వైద్య సదుపాయం*\n"
+            f"- 💼 *చిన్న వ్యాపారాల కోసం ముద్రా రుణాలు*\n"
+            f"- ⚡ *పీఎం సూర్య ఘర్ సోలార్ ప్యానెల్ సబ్సిడీ*"
+        ),
+        "mr": (
+            f"⚠️ **कार्यक्षेत्र मर्यादा सूचना (Scope Boundary Notice)**\n\n"
+            f"क्षमस्व, आपला प्रश्न (*\"{escaped_query}\"*) सरकारी योजनांच्या कार्यक्षेत्राबाहेर आहे. "
+            f"मी केवळ केंद्र व राज्य शासनाच्या अधिकृत कल्याणकारी योजना, शिष्यवृत्ती, सबसिडी "
+            f"आणि नागरिक पात्रतेबाबत मदत करण्यासाठी अधिकृत आहे.\n\n"
+            f"**कृपया सरकारी योजनांशी संबंधित प्रश्न विचारा:**\n"
+            f"- 🌾 *पीएम-किसान सन्मान निधी योजना*\n"
+            f"- 🎓 *उच्च शिक्षणासाठी सरकारी शिष्यवृत्ती*\n"
+            f"- 🏥 *आयुष्मान भारत मोफत आरोग्य उपचार कार्ड*\n"
+            f"- 💼 *नवीन व्यवसायासाठी मुद्रा कर्ज योजना*\n"
+            f"- ⚡ *पीएम सूर्य घर सोलर रूफटॉप सबसिडी*"
+        ),
+        "gu": (
+            f"⚠️ **કાર્યક્ષેત્ર મર્યાદા સૂચના (Scope Boundary Notice)**\n\n"
+            f"માફ કરશો, તમારો પ્રશ્ન (*\"{escaped_query}\"*) સરકારી કલ્યાણ યોજનાઓના કાર્યક્ષેત્રની બહાર છે. "
+            f"હું માત્ર કેન્દ્ર અને રાજ્ય સરકારની સત્તાવાર કલ્યાણકારી યોજનાઓ, સબસિડી, શિષ્યવૃત્તિઓ "
+            f"અને નાગરિક પાત્રતા અંગે સહાય કરવા માટે અધિકૃત છું.\n\n"
+            f"**કૃપા કરીને સરકારી યોજનાઓ સંબંધિત પ્રશ્નો પૂછો:**\n"
+            f"- 🌾 *પીએમ-કિસાન સન્માન નિધિ સહાય*\n"
+            f"- 🎓 *વિદ્યાર્થીઓ માટે સરકારી શિષ્યવૃત્તિ*\n"
+            f"- 🏥 *આયુષ્માન ભારત યોજના કાર્ડ*\n"
+            f"- 💼 *નાના વ્યવસાય માટે મુદ્રા લોન*\n"
+            f"- ⚡ *પીએમ સૂર્ય ઘર સોલાર સબસિડી*"
+        ),
+        "pa": (
+            f"⚠️ **ਕਾਰਜਖੇਤਰ ਸੀਮਾ ਨੋਟਿਸ (Scope Boundary Notice)**\n\n"
+            f"ਮਾਫ਼ ਕਰਨਾ, ਤੁਹਾਡਾ ਸਵਾਲ (*\"{escaped_query}\"*) ਸਰਕਾਰੀ ਭਲਾਈ ਯੋਜਨਾਵਾਂ ਦੇ ਦਾਇਰੇ ਤੋਂ ਬਾਹਰ ਹੈ। "
+            f"ਮੈਂ ਸਿਰਫ਼ ਕੇਂਦਰ ਅਤੇ ਰਾਜ ਸਰਕਾਰਾਂ ਦੀਆਂ ਭਲਾਈ ਯੋਜਨਾਵਾਂ, ਸਬਸਿਡੀਆਂ, ਵਜ਼ੀਫ਼ਿਆਂ "
+            f"ਅਤੇ ਨਾਗਰਿਕ ਯੋਗਤਾਵਾਂ ਬਾਰੇ ਹੀ ਮਾਰਗਦਰਸ਼ਨ ਕਰ ਸਕਦਾ ਹਾਂ।\n\n"
+            f"**ਕਿਰਪਾ ਕਰਕੇ ਸਰਕਾਰੀ ਯੋਜਨਾਵਾਂ ਨਾਲ ਸੰਬੰਧਿਤ ਸਵਾਲ ਪੁੱਛੋ:**\n"
+            f"- 🌾 *ਪੀਐਮ-ਕਿਸਾਨ ਸਨਮਾਨ ਨਿਧੀ ਸਕੀਮ*\n"
+            f"- 🎓 *ਵਿਦਿਆਰਥੀਆਂ ਲਈ ਸਰਕਾਰੀ ਵਜ਼ੀਫ਼ੇ*\n"
+            f"- 🏥 *ਆਯੁਸ਼ਮਾਨ ਭਾਰਤ ਮੁਫ਼ਤ ਇਲਾਜ ਕਾਰਡ*\n"
+            f"- 💼 *ਨਵੇਂ ਕਾਰੋਬਾਰ ਲਈ ਮੁਦਰਾ ਲੋਨ*\n"
+            f"- ⚡ *ਪੀਐਮ ਸੂਰਯ ਘਰ ਸੋਲਰ ਸਬਸਿਡੀ*"
+        ),
+        "hi": (
             f"⚠️ **कार्यक्षेत्र सीमा सूचना (Out of Domain Notice)**\n\n"
             f"क्षमा करें, आपका प्रश्न (*\"{escaped_query}\"*) सरकारी योजनाओं के कार्यक्षेत्र से बाहर है। "
             f"मैं केवल **भारत सरकार (केंद्रीय) एवं राज्य सरकारों की कल्याणकारी योजनाओं, छात्रवृत्तियों, "
@@ -560,11 +703,16 @@ def generate_ood_refusal(user_query: str, is_hindi: bool = False) -> str:
             f"- 🏥 *\"आयुष्मान भारत कार्ड कैसे बनवाएं और इसके तहत क्या लाभ मिलते हैं?\"*\n"
             f"- 💼 *\"नया छोटा व्यापार शुरू करने के लिए मुद्रा लोन कैसे प्राप्त करें?\"*\n"
             f"- ⚡ *\"पीएम सूर्य घर योजना में सोलर पैनल लगाने पर कितनी सब्सिडी मिलती है?\"*\n\n"
-            f"आप ऊपर दिए गए **Check Eligibility (5-Step Wizard)** टैब पर क्लिक करके भी अपनी पात्रता जांच सकते हैं।"
+            f"आप ऊपर दिए गए **Check Eligibility** टैब पर क्लिक करके भी अपनी पात्रता जांच सकते हैं।"
         )
+    }
+
+    if code in ood_templates:
+        return ood_templates[code]
+
     return (
         f"⚠️ **Scope Boundary Notice (myScheme Portal Guard)**\n\n"
-        f"Your question (*\"{escaped_query}\"*) appears to be **outside the scope of Indian Government welfare schemes**.\n\n"
+        f"Your question (*\"{escaped_query}\"*) appears to be **outside the scope of Indian government welfare schemes**.\n\n"
         f"I am an evidence-grounded assistant designed exclusively to help citizens navigate **official Central and State Government schemes, eligibility criteria, subsidies, and public benefits** on the **myScheme** portal.\n\n"
         f"### How I Can Help You:\n"
         f"- 🌾 **Agriculture:** PM-KISAN, tractor & solar pump subsidies, crop insurance\n"
@@ -573,5 +721,5 @@ def generate_ood_refusal(user_query: str, is_hindi: bool = False) -> str:
         f"- 💼 **Business:** Collateral-free Mudra & PMEGP loans for startups and MSMEs\n"
         f"- ⚡ **Energy:** PM Surya Ghar Muft Bijli Yojana rooftop solar subsidy\n"
         f"- 👵 **Pensions & Social Welfare:** Old age, widow, and disability pension schemes\n\n"
-        f"Please rephrase your query around government benefits or click the **Check Eligibility (5-Step Wizard)** tab to check your profile directly!"
+        f"Please rephrase your query around government benefits or click the **Check Eligibility** tab to check your profile directly!"
     )

@@ -89,6 +89,11 @@ class LLMService:
             return None
 
         # Iterate through keys in pool (load-balanced + failover)
+        # Ensure 'json' appears in messages as strictly required by Groq response_format json_object
+        effective_system = system_prompt or "You are a helpful assistant."
+        if "json" not in (effective_system + prompt).lower():
+            effective_system = f"{effective_system}\nYou must return valid JSON only."
+
         for api_key in ordered_keys:
             headers = {
                 "Authorization": f"Bearer {api_key}",
@@ -101,7 +106,7 @@ class LLMService:
                     payload = {
                         "model": model,
                         "messages": [
-                            {"role": "system", "content": system_prompt},
+                            {"role": "system", "content": effective_system},
                             {"role": "user", "content": prompt}
                         ],
                         "response_format": {"type": "json_object"},
@@ -125,7 +130,8 @@ class LLMService:
                             )
                             break  # Break inner model loop to immediately try the next key
                         else:
-                            logger.warning("LLM request to model %s returned HTTP %s", model, resp.status_code)
+                            resp_text = getattr(resp, "text", "")
+                            logger.warning("LLM request to model %s returned HTTP %s: %s", model, resp.status_code, resp_text[:200])
                 except httpx.HTTPError as error:
                     logger.warning("LLM request to model %s failed: %s", model, error)
                     continue

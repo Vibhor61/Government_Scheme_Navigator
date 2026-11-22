@@ -41,6 +41,11 @@ CRITICAL RULES:
    - For choices with > 4 options (e.g. State/UT selector, list of 18 trades): set "input_type": "dropdown".
    - For continuous values (income in rupees, age in years, landholding in acres/hectares): set "input_type": "number".
 
+5. STRICT LOCALIZATION & VERNACULAR SCRIPT MANDATE:
+   - Formulate all user-facing strings ("question", "label", "options", "hint") strictly in the citizen's target language and script (e.g., Hindi/Devanagari, Bengali, Kannada, Marathi, Tamil, Telugu, Gujarati).
+   - DO NOT write questions or options in English when the citizen's language is an Indian regional language!
+   - Keep the machine-readable "id" key in ASCII snake_case (e.g. "annual_family_income", "state", "landholding_acres", "social_category", "age", "gender").
+
 Respond strictly in valid JSON matching this schema:
 {
   "is_complete": false,
@@ -53,11 +58,11 @@ Respond strictly in valid JSON matching this schema:
   "questions": [
     {
       "id": "short_unique_field_key",
-      "label": "Short Field Label (e.g., Annual Family Income)",
-      "question": "Clear, respectful question text",
+      "label": "Short Field Label in target language (e.g., वार्षिक पारिवारिक आय / বাৎসরিক পারিবারিক আয় / ವಾರ್ಷಿಕ ಕುಟುಂಬದ ಆದಾಯ)",
+      "question": "Clear, respectful question text in target language",
       "input_type": "radio | dropdown | number",
-      "options": ["Option 1", "Option 2", "Option 3"],
-      "hint": "Why this is required by the candidate scheme",
+      "options": ["Option 1 in target language", "Option 2 in target language"],
+      "hint": "Short reason in target language why required",
       "required": true
     }
   ]
@@ -87,6 +92,8 @@ class QuestionnaireTool:
         conversation_history: Optional[List[Dict[str, Any]]] = None,
         user_profile: Optional[Dict[str, Any]] = None,
         user_query: str = "",
+        target_language: str = "en",
+        target_language_name: str = "English",
     ) -> Dict[str, Any]:
         """
         Executes dynamic gap analysis and synthesizes interactive questions for unresolved criteria.
@@ -130,6 +137,7 @@ class QuestionnaireTool:
         schemes_str = json.dumps(compact_schemes, ensure_ascii=False)
 
         prompt = f"""Incoming Citizen Query: "{user_query}"
+Citizen Target Language: {target_language_name} [{target_language}]
 
 Known Criteria Extracted by Router:
 {criteria_str}
@@ -144,7 +152,8 @@ Candidate Schemes and Their Official Criteria:
 {schemes_str}
 
 Perform strict gap analysis. Identify what is already resolved vs what is still missing.
-Generate questions strictly for unresolved criteria (never repeat what is known, never miss what is needed)."""
+Generate questions strictly for unresolved criteria (never repeat what is known, never miss what is needed).
+CRITICAL: All generated question text, labels, options, and hints MUST be in {target_language_name} [{target_language}]."""
 
         result = self.llm._call_groq_json(
             prompt=prompt,
@@ -155,60 +164,22 @@ Generate questions strictly for unresolved criteria (never repeat what is known,
         if result and isinstance(result, dict) and "questions" in result:
             questions = result.get("questions", [])
             logger.info(
-                "QuestionnaireTool generated %d dynamic questions (is_complete=%s)",
+                "QuestionnaireTool generated %d dynamic questions in %s (is_complete=%s)",
                 len(questions),
+                target_language_name,
                 result.get("is_complete"),
             )
             return result
 
-        logger.warning("QuestionnaireTool LLM call returned invalid response; using fallback diffing.")
-        return self._fallback_questionnaire(
-            candidate_schemes=candidate_schemes,
-            known_criteria=known_criteria,
-            user_profile=user_profile,
+        logger.warning(
+            "QuestionnaireTool LLM call returned invalid response or was unreachable for language %s; zero questions generated (zero guessing).",
+            target_language_name
         )
-
-    def _fallback_questionnaire(
-        self,
-        candidate_schemes: List[Dict[str, Any]],
-        known_criteria: Optional[Dict[str, Any]] = None,
-        user_profile: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Safety fallback if LLM is unreachable."""
-        merged_known = {**(user_profile or {}), **(known_criteria or {})}
-        questions = []
-        seen_fields = set()
-
-        for scheme in candidate_schemes:
-            rules = scheme.get("eligibility_rules", [])
-            for r in rules:
-                if not isinstance(r, dict):
-                    continue
-                field = r.get("field")
-                if not field or field in merged_known or field in seen_fields:
-                    continue
-                seen_fields.add(field)
-
-                rule_text = r.get("rule_text") or field.replace("_", " ").title()
-                val = r.get("value")
-                options = ["Yes", "No", "Not sure"] if not isinstance(val, list) else [str(v) for v in val] + ["Other"]
-                input_type = "dropdown" if len(options) > 4 else "radio"
-
-                questions.append({
-                    "id": field,
-                    "label": field.replace("_", " ").title(),
-                    "question": f"Does the following condition apply to you: '{rule_text}'?",
-                    "input_type": input_type,
-                    "options": options,
-                    "hint": f"Required for {scheme.get('scheme_name', 'scheme')} eligibility.",
-                    "required": True,
-                })
-
         return {
-            "is_complete": len(questions) == 0,
-            "resolved_criteria": [{"criterion": k, "value": str(v)} for k, v in merged_known.items()],
+            "is_complete": True,
+            "resolved_criteria": [],
             "unresolved_criteria": [],
-            "questions": questions,
+            "questions": [],
         }
 
     def run(self, **kwargs) -> Dict[str, Any]:

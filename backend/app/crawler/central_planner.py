@@ -10,6 +10,7 @@ Coordinates:
 
 import json
 import logging
+import re
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -73,6 +74,7 @@ class CentralAgentPlanner:
             user_clarification=user_clarification,
             conversation_history=conversation_history,
             user_profile=user_profile,
+            lang_code=language,
         )
 
         if guard_status in ("FLOODING_SPAM", "SECURITY_BLOCKED", "PROMPT_INJECTION", "OUT_OF_DOMAIN"):
@@ -137,9 +139,52 @@ class CentralAgentPlanner:
             target_lang = detected_lang
             target_lang_name = detected_name
 
+        # Check for upstream AI service unavailable / rate limit
+        if router_res.get("is_service_unavailable"):
+            service_msg = router_res.get("service_message") or generate_service_unavailable_response(target_lang)
+            trace.append({
+                "step": 1,
+                "type": "ROUTER",
+                "tool_name": self.router.name,
+                "title": "Stage 1: Intent Routing (Upstream AI Capacity Limit)",
+                "observation": "Upstream Groq LLM capacity reached (HTTP 429).",
+                "status": "SERVICE_UNAVAILABLE",
+                "latency_ms": t1_lat,
+            })
+            return {
+                "query": user_query,
+                "answer": service_msg,
+                "key_takeaways": [
+                    "Upstream AI service capacity reached (Groq API HTTP 429). Please retry in 30 seconds."
+                ],
+                "eligibility_checklist": [],
+                "eligibility_matrix": [],
+                "eligibility_status": "service_unavailable",
+                "best_match_scheme": None,
+                "other_schemes": [],
+                "profiler_questions": [],
+                "conflict_alert": None,
+                "resolution": None,
+                "missing_details": None,
+                "agent_trace": trace,
+                "extracted_schemes": [],
+                "portal_results": [],
+                "crawled_sources": [],
+                "crawler_metrics": {
+                    "total_execution_ms": int(t1_lat),
+                    "security_whitelist_passed": True,
+                    "guard_status": "SERVICE_UNAVAILABLE",
+                },
+                "detected_language": target_lang,
+                "language_name": target_lang_name,
+            }
+
         # Check for Out-of-Domain via Router LLM
         if router_res.get("is_out_of_domain"):
-            ood_answer = router_res.get("polite_ood_refusal") or generate_ood_refusal(user_query)
+            ood_answer = router_res.get("polite_ood_refusal")
+            # If router polite refusal is missing or doesn't match regional script, use canonical localized template
+            if not ood_answer or (target_lang != "en" and not re.search(r"[^\u0000-\u007F]", ood_answer)):
+                ood_answer = generate_ood_refusal(user_query, lang_code=target_lang)
             trace.append({
                 "step": 1,
                 "type": "ROUTER",
@@ -394,6 +439,8 @@ class CentralAgentPlanner:
                 conversation_history=conversation_history,
                 user_profile=user_profile,
                 user_query=user_query,
+                target_language=target_lang,
+                target_language_name=target_lang_name,
             )
             questions = q_res.get("questions", [])
         else:
@@ -458,7 +505,9 @@ class CentralAgentPlanner:
             schemes=candidate_schemes,
             user_profile=merged_profile,
             user_query=user_query,
-            crawled_results=[{"url": s.get("url", ""), "title": s.get("name", "")} for s in candidate_schemes]
+            crawled_results=[{"url": s.get("url", ""), "title": s.get("name", "")} for s in candidate_schemes],
+            target_language=target_lang,
+            language_name=target_lang_name,
         )
         t5_lat = round((time.time() - t5_start) * 1000, 2)
 

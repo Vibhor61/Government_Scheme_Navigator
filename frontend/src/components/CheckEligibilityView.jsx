@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { checkEligibility } from '../services/api';
 import SchemeBentoCard from './SchemeBentoCard';
+import { t } from '../utils/i18n';
 
 export default function CheckEligibilityView({
   onAskAiWithProfile,
@@ -45,12 +46,12 @@ export default function CheckEligibilityView({
   ];
 
   const occupations = [
-    { id: 'Farmer', label: isHindi ? 'किसान / कृषि' : 'Farmer / Agriculture' },
-    { id: 'Student', label: isHindi ? 'विद्यार्थी / छात्र' : 'Student / Higher Education' },
-    { id: 'Self Employed / Micro-Business', label: isHindi ? 'स्वरोजगार / छोटा व्यापार' : 'Self Employed / Micro Business' },
-    { id: 'Artisan / Traditional Craftsman', label: isHindi ? 'कारीगर / शिल्पकार' : 'Artisan / Vishwakarma' },
-    { id: 'Unemployed Youth', label: isHindi ? 'बेरोजगार युवा' : 'Unemployed Youth' },
-    { id: 'Salaried Employee', label: isHindi ? 'वेतनभोगी कर्मचारी' : 'Salaried Employee' }
+    { id: 'Farmer', label: t('occ_farmer', language) },
+    { id: 'Student', label: t('occ_student', language) },
+    { id: 'Self Employed / Micro-Business', label: t('occ_self_employed', language) },
+    { id: 'Artisan / Traditional Craftsman', label: t('occ_artisan', language) },
+    { id: 'Unemployed Youth', label: t('occ_unemployed', language) },
+    { id: 'Salaried Employee', label: t('occ_salaried', language) }
   ];
 
   const handleRunEvaluation = async (e) => {
@@ -81,15 +82,13 @@ export default function CheckEligibilityView({
         <div className="mb-8">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-forest-200 dark:border-forest-800/60 bg-forest-50 dark:bg-forest-950/40 px-3 py-1 text-xs font-semibold text-forest-800 dark:text-forest-300 mb-2">
             <CheckCircle className="h-3.5 w-3.5 text-forest-600 dark:text-forest-400" />
-            <span>{isHindi ? 'त्वरित पात्रता प्रोफाइलर' : 'Instant Eligibility Profiler'}</span>
+            <span>{t('portal_subtitle', language)}</span>
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-charcoal-900 dark:text-sand-50 sm:text-3xl">
-            {isHindi ? 'अपनी पात्रता की त्वरित जांच करें' : 'Check Your Eligibility'}
+            {t('nav_eligibility', language)}
           </h2>
           <p className="mt-1.5 text-sm text-charcoal-500 dark:text-sand-400 max-w-2xl">
-            {isHindi
-              ? 'अपनी बुनियादी जनसांख्यिकीय व आय विवरण दर्ज करें। हम तुरंत पता लगाएंगे कि आप किन सरकारी लाभों के पात्र हैं।'
-              : 'Enter your basic profile details to instantly discover welfare schemes matched to your occupation, income, and state.'}
+            {t('hero_subtitle', language)}
           </p>
         </div>
 
@@ -102,23 +101,23 @@ export default function CheckEligibilityView({
             {/* Gender */}
             <div>
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'लिंग (Gender)' : 'Gender'}
+                {t('field_gender', language)}
               </label>
               <select
                 value={profile.gender}
                 onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
                 className="w-full rounded-xl border border-border dark:border-[#273B30] bg-sand-50/50 dark:bg-[#15201A] px-3 py-2 text-xs font-medium text-charcoal-900 dark:text-sand-50 focus:border-forest-600 focus:bg-white dark:focus:bg-[#192720] focus:outline-none"
               >
-                <option value="Male" className="dark:bg-[#15201A]">{isHindi ? 'पुरुष (Male)' : 'Male'}</option>
-                <option value="Female" className="dark:bg-[#15201A]">{isHindi ? 'महिला (Female)' : 'Female'}</option>
-                <option value="Other" className="dark:bg-[#15201A]">{isHindi ? 'अन्य (Other)' : 'Other'}</option>
+                <option value="Male" className="dark:bg-[#15201A]">{t('gender_male', language)}</option>
+                <option value="Female" className="dark:bg-[#15201A]">{t('gender_female', language)}</option>
+                <option value="Other" className="dark:bg-[#15201A]">{t('gender_other', language)}</option>
               </select>
             </div>
 
             {/* Age */}
             <div>
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'आयु (वर्ष)' : 'Age (Years)'}
+                {t('field_age', language)}
               </label>
               <input
                 type="number"
@@ -133,7 +132,7 @@ export default function CheckEligibilityView({
             {/* State */}
             <div>
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'राज्य / केंद्र शासित प्रदेश' : 'State / UT'}
+                {t('field_state', language)}
               </label>
               <select
                 value={profile.state}
@@ -149,22 +148,22 @@ export default function CheckEligibilityView({
             {/* Area */}
             <div>
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'क्षेत्र (Area)' : 'Area of Residence'}
+                {t('field_area', language)}
               </label>
               <select
                 value={profile.rural_urban}
                 onChange={(e) => setProfile({ ...profile, rural_urban: e.target.value })}
                 className="w-full rounded-xl border border-border dark:border-[#273B30] bg-sand-50/50 dark:bg-[#15201A] px-3 py-2 text-xs font-medium text-charcoal-900 dark:text-sand-50 focus:border-forest-600 focus:bg-white dark:focus:bg-[#192720] focus:outline-none"
               >
-                <option value="Rural" className="dark:bg-[#15201A]">{isHindi ? 'ग्रामीण (Rural)' : 'Rural'}</option>
-                <option value="Urban" className="dark:bg-[#15201A]">{isHindi ? 'शहरी (Urban)' : 'Urban'}</option>
+                <option value="Rural" className="dark:bg-[#15201A]">{t('area_rural', language)}</option>
+                <option value="Urban" className="dark:bg-[#15201A]">{t('area_urban', language)}</option>
               </select>
             </div>
 
             {/* Social Category */}
             <div>
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'सामाजिक वर्ग (Category)' : 'Social Category'}
+                {t('field_social_category', language)}
               </label>
               <select
                 value={profile.social_category}
@@ -182,7 +181,7 @@ export default function CheckEligibilityView({
             {/* Occupation */}
             <div>
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'व्यवसाय (Occupation)' : 'Primary Occupation'}
+                {t('field_occupation', language)}
               </label>
               <select
                 value={profile.occupation}
@@ -198,7 +197,7 @@ export default function CheckEligibilityView({
             {/* Annual Income */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-charcoal-900 dark:text-sand-200 mb-1.5">
-                {isHindi ? 'वार्षिक पारिवारिक आय (₹)' : 'Annual Household Income (₹)'}
+                {t('field_annual_income', language)}
               </label>
               <input
                 type="number"
@@ -214,7 +213,7 @@ export default function CheckEligibilityView({
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/80 dark:border-[#22332A]/80 pt-4">
             <div className="flex items-center gap-2 text-xs text-charcoal-500 dark:text-sand-400">
               <ShieldCheck className="h-4 w-4 text-forest-600 dark:text-emerald-400" />
-              <span>{isHindi ? 'डेटा केवल पात्रता मिलान हेतु उपयोग होता है।' : 'Profile data is used only for scheme evaluation.'}</span>
+              <span>{t('verified_myscheme', language)}</span>
             </div>
 
             <div className="flex items-center gap-2.5 w-full sm:w-auto">
@@ -226,12 +225,12 @@ export default function CheckEligibilityView({
                 {isEvaluating ? (
                   <>
                     <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>{isHindi ? 'गणना की जा रही है...' : 'Evaluating...'}</span>
+                    <span>{t('evaluating', language)}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-3.5 w-3.5" />
-                    <span>{isHindi ? 'पात्रता जांचें' : 'Evaluate Schemes'}</span>
+                    <span>{t('btn_evaluate_eligibility', language)}</span>
                   </>
                 )}
               </button>
@@ -242,7 +241,7 @@ export default function CheckEligibilityView({
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl border border-forest-300 dark:border-forest-700/60 bg-forest-50 dark:bg-forest-950/40 px-5 py-2.5 text-xs font-semibold text-forest-800 dark:text-forest-200 hover:bg-forest-100 dark:hover:bg-forest-900/50 transition active:scale-95 cursor-pointer"
               >
                 <Sparkles className="h-3.5 w-3.5 text-forest-600 dark:text-forest-400" />
-                <span>{isHindi ? 'AI से विस्तृत चर्चा करें' : 'Discuss with AI'}</span>
+                <span>{t('discuss_with_ai', language)}</span>
               </button>
             </div>
           </div>
@@ -254,12 +253,10 @@ export default function CheckEligibilityView({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-charcoal-900 dark:text-sand-50">
-                  {isHindi ? 'आपके लिए उपयुक्त योजनाएं' : 'Matched Schemes for Your Profile'}
+                  {t('matched_schemes_profile', language)}
                 </h3>
                 <p className="text-xs text-charcoal-500 dark:text-sand-400">
-                  {isHindi
-                    ? `${matchedSchemes.length} योजनाएं आपके प्रोफाइल के अनुकूल पाई गईं:`
-                    : `Found ${matchedSchemes.length} programs meeting your criteria:`}
+                  {`${matchedSchemes.length} ${t('schemes_found', language)}`}
                 </p>
               </div>
 
@@ -267,14 +264,14 @@ export default function CheckEligibilityView({
                 onClick={() => onAskAiWithProfile(profile)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-forest-700 dark:text-emerald-400 hover:text-forest-900 dark:hover:text-emerald-300 transition"
               >
-                <span>{isHindi ? 'सभी योजनाओं की AI रिपोर्ट प्राप्त करें' : 'Get Full AI Report'}</span>
+                <span>{t('get_full_ai_report', language)}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
 
             {matchedSchemes.length === 0 ? (
               <div className="rounded-2xl border border-border dark:border-[#22332A] bg-white dark:bg-[#111A15] p-8 text-center text-xs text-charcoal-500 dark:text-sand-400">
-                {isHindi ? 'दिए गए मापदंडों के अनुसार कोई योजना नहीं मिली।' : 'No direct matches found for these exact parameters.'}
+                {t('no_direct_matches', language)}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -286,6 +283,7 @@ export default function CheckEligibilityView({
                     onToggleBookmark={onToggleBookmark}
                     isBookmarked={isBookmarked(scheme)}
                     isHindi={isHindi}
+                    language={language}
                   />
                 ))}
               </div>

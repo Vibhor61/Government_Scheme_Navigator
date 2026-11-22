@@ -26,6 +26,7 @@ import WelfareStackCard from './WelfareStackCard';
 import CrossSchemeConflictAlert from './CrossSchemeConflictAlert';
 import VoicePopup from './VoicePopup';
 import useVoice from '../hooks/useVoice';
+import { t } from '../utils/i18n';
 
 export default function AIAssistantSection({
   initialQuery = '',
@@ -197,7 +198,7 @@ export default function AIAssistantSection({
       const newAssistantMsg = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: response.answer || (isHindi ? 'कोई जानकारी नहीं मिली।' : 'No answer generated.'),
+        content: response.answer || t('no_answer', language),
         data: response,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
@@ -210,9 +211,7 @@ export default function AIAssistantSection({
         {
           id: `error-${Date.now()}`,
           role: 'assistant',
-          content: isHindi
-            ? 'क्षमा करें, आधिकारिक सरकारी रिपॉजिटरी से जुड़ने में समस्या हुई। कृपया पुनः प्रयास करें।'
-            : 'Sorry, I encountered an issue connecting to the official government repository. Please try again.',
+          content: t('connection_error', language),
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -226,17 +225,23 @@ export default function AIAssistantSection({
     return savedSchemes.some(s => (s.name || s.scheme_name) === sName);
   };
 
+  // ── Mid-conversation language switch notification ──────────────────────
+  const [langSwitchNotice, setLangSwitchNotice] = useState(null);
+  const prevLangRef = useRef(language);
+
+  useEffect(() => {
+    if (prevLangRef.current !== language) {
+      prevLangRef.current = language;
+      if (messages.length > 0) {
+        setLangSwitchNotice(t('language_switched_banner', language));
+        const timer = setTimeout(() => setLangSwitchNotice(null), 4500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [language, messages.length]);
+
   // ── Placeholder text by language ──────────────────────────────────────
-  const placeholderText = {
-    kn: 'ನಿಮ್ಮ ಅಗತ್ಯತೆ ಅಥವಾ ಯೋಜನೆಯ ಹೆಸರು ಕೇಳಿ...',
-    hi: 'अपनी स्थिति या योजना का नाम पूछें...',
-    bn: 'আপনার প্রয়োজন বা যোজনার নাম জিজ্ঞেস করুন...',
-    ta: 'உங்கள் தேவை அல்லது திட்டத்தின் பெயரைக் கேளுங்கள்...',
-    te: 'మీ అవసరం లేదా పథకం పేరు అడగండి...',
-    mr: 'तुमची गरज किंवा योजनेचे नाव विचारा...',
-    gu: 'તમારી જરૂરિયાત અથવા યોજનાનું નામ પૂછો...',
-    en: 'Ask about your situation or scheme (e.g., B.Tech scholarship, farmer income, solar panels)...',
-  }[language] || 'Ask about a government scheme...';
+  const placeholderText = t('input_placeholder', language);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sand-50 dark:bg-[#0B130F] transition-colors duration-200">
@@ -300,13 +305,13 @@ export default function AIAssistantSection({
                             JanSahayak
                           </span>
                           <span className="rounded bg-forest-50 px-1.5 py-0.5 text-[10px] font-semibold text-forest-700 border border-forest-100 dark:border-forest-900/60 dark:bg-forest-950/60 dark:text-emerald-300">
-                            {isHindi ? 'सत्यापित उत्तर' : 'Evidence Grounded'}
+                            {t('evidence_grounded', language)}
                           </span>
                           {/* Speaking indicator badge */}
                           {isSpeaking && (
                             <span className="flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 animate-pulse">
                               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              {isHindi ? 'पढ़ रहे हैं' : 'Reading'}
+                              {t('reading_aloud', language)}
                             </span>
                           )}
                         </div>
@@ -322,8 +327,8 @@ export default function AIAssistantSection({
                                   ? 'bg-forest-100 text-forest-700 dark:bg-emerald-900/40 dark:text-emerald-300'
                                   : 'text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-700 dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100'
                               }`}
-                              title={isSpeaking ? (isHindi ? 'रोकें' : 'Stop reading') : (isHindi ? 'ज़ोर से पढ़ें' : 'Read aloud')}
-                              aria-label={isSpeaking ? 'Stop reading' : 'Read aloud'}
+                              title={isSpeaking ? t('stop_reading', language) : t('read_aloud', language)}
+                              aria-label={isSpeaking ? t('stop_reading', language) : t('read_aloud', language)}
                             >
                               {isSpeaking ? (
                                 <VolumeX className="h-3.5 w-3.5" />
@@ -338,8 +343,8 @@ export default function AIAssistantSection({
                             type="button"
                             onClick={() => handleCopyText(msg.id, msg.content)}
                             className="rounded p-1.5 text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-700 transition dark:text-charcoal-400 dark:hover:bg-charcoal-800 dark:hover:text-sand-100"
-                            title={isHindi ? 'कॉपी करें' : 'Copy response'}
-                            aria-label="Copy response"
+                            title={t('copy_response', language)}
+                            aria-label={t('copy_response', language)}
                           >
                             {copiedId === msg.id ? (
                               <Check className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
@@ -370,7 +375,7 @@ export default function AIAssistantSection({
                       <div className="mt-4 rounded-xl border border-forest-100 bg-forest-50/60 p-3 text-xs dark:border-forest-900/60 dark:bg-forest-950/40">
                         <p className="font-bold text-forest-900 dark:text-emerald-300 mb-1 flex items-center gap-1.5">
                           <CheckCircle2 className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
-                          <span>{isHindi ? 'मुख्य बिंदु (Key Takeaways):' : 'Key Takeaways:'}</span>
+                          <span>{t('key_takeaways_label', data.detected_language || language)}</span>
                         </p>
                         <ul className="list-disc list-outside pl-4 space-y-0.5 text-forest-950 dark:text-emerald-100/90">
                           {data.key_takeaways.map((point, pIdx) => (
@@ -383,7 +388,7 @@ export default function AIAssistantSection({
                     {/* Eligibility Evaluation Card */}
                     {!isUser && data && data.eligibility_matrix && data.eligibility_matrix.some(s => (s.eligibility_matrix && s.eligibility_matrix.length > 0) || s.eligibility_status) && (
                       <div className="mt-4">
-                        <EligibilityEvaluationCard schemes={data.eligibility_matrix} isHindi={isHindi} />
+                        <EligibilityEvaluationCard schemes={data.eligibility_matrix} isHindi={isHindi} language={data.detected_language || language} />
                       </div>
                     )}
 
@@ -391,6 +396,7 @@ export default function AIAssistantSection({
                     {!isUser && data && data.profiler_questions && data.profiler_questions.length > 0 && (
                       <DynamicQuestionnaireCard
                         questions={data.profiler_questions}
+                        language={data.detected_language || language}
                         isHindi={isHindi}
                         isSubmitting={isLoading}
                         onSubmitBatch={(batchAnswers) => {
@@ -398,9 +404,8 @@ export default function AIAssistantSection({
                             .filter(([_, v]) => v !== undefined && v !== '')
                             .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`);
                           const userText = summaryParts.join(', ');
-                          const displayMsg = isHindi
-                            ? `पात्रता विवरण: ${userText} (मेरी पात्रता का मूल्यांकन करें)`
-                            : `Eligibility Details: ${userText} (Evaluate my eligibility)`;
+                          const activeLang = data.detected_language || language;
+                          const displayMsg = `${t('submitted_details_prefix', activeLang)}: ${userText} (${t('evaluate_my_eligibility', activeLang)})`;
                           handleSend(userText, displayMsg, batchAnswers);
                         }}
                       />
@@ -421,7 +426,7 @@ export default function AIAssistantSection({
                     {/* Welfare Stack Card */}
                     {!isUser && data && data.welfare_stack && (
                       <div className="mt-4">
-                        <WelfareStackCard stack={data.welfare_stack} isHindi={isHindi} />
+                        <WelfareStackCard stack={data.welfare_stack} isHindi={isHindi} language={data.detected_language || language} />
                       </div>
                     )}
 
@@ -430,10 +435,10 @@ export default function AIAssistantSection({
                       <div className="mt-5 space-y-3">
                         <div className="flex items-center justify-between">
                           <h5 className="text-xs font-bold uppercase tracking-wider text-charcoal-400">
-                            {isHindi ? 'संबंधित सरकारी योजनाएं' : 'Discovered Government Schemes'}
+                            {t('discovered_schemes_heading', data.detected_language || language)}
                           </h5>
-                          <span className="text-[11px] font-semibold text-forest-700">
-                            {data.extracted_schemes.length} {isHindi ? 'योजनाएं मिलीं' : 'Schemes found'}
+                          <span className="text-[11px] font-semibold text-forest-700 dark:text-emerald-400">
+                            {data.extracted_schemes.length} {t('schemes_found', data.detected_language || language)}
                           </span>
                         </div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -441,10 +446,11 @@ export default function AIAssistantSection({
                             <SchemeBentoCard
                               key={sIdx}
                               scheme={scheme}
-                              onAskAi={(name) => handleSend(isHindi ? `"${name}" योजना की पात्रता व लाभ बताएं` : `Explain detailed eligibility and benefits for "${name}"`)}
+                              onAskAi={(name) => handleSend(language === 'hi' ? `"${name}" योजना की पात्रता व लाभ बताएं` : (language === 'kn' ? `"${name}" ಯೋಜನೆಯ ಅರ್ಹತೆ ಮತ್ತು ಪ್ರಯೋಜನಗಳನ್ನು ವಿವರಿಸಿ` : `Explain detailed eligibility and benefits for "${name}"`))}
                               onToggleBookmark={onSaveScheme}
                               isBookmarked={isBookmarked(scheme)}
                               isHindi={isHindi}
+                              language={data.detected_language || language}
                             />
                           ))}
                         </div>
@@ -478,9 +484,7 @@ export default function AIAssistantSection({
                 <div className="rounded-2xl rounded-tl-xs border border-border bg-white px-4 py-3 shadow-subtle flex items-center gap-2 text-xs font-medium text-charcoal-600 dark:border-charcoal-800 dark:bg-[#111A15] dark:text-charcoal-300">
                   <RefreshCw className="h-3.5 w-3.5 animate-spin text-forest-600 dark:text-emerald-400" />
                   <span>
-                    {isHindi
-                      ? 'आधिकारिक रिपॉजिटरी में पात्रता नियमों का विश्लेषण किया जा रहा है...'
-                      : 'Searching official repositories and evaluating eligibility rules...'}
+                    {t('analyzing_eligibility', language)}
                   </span>
                 </div>
               </div>
@@ -493,69 +497,26 @@ export default function AIAssistantSection({
 
       {/* ── Bottom Input Bar ─────────────────────────────────────────────── */}
       <div className="border-t border-border bg-sand-50/95 px-4 py-3 sm:px-6 dark:border-charcoal-800 dark:bg-[#0E1712]">
-        <div className="mx-auto max-w-5xl space-y-2">
+        <div className="mx-auto max-w-4xl space-y-2.5">
 
-          {/* Auto-read toggle strip */}
-          {ttsSupported && (
-            <div className="flex items-center justify-between px-1">
-              <button
-                type="button"
-                onClick={toggleAutoRead}
-                className={`flex items-center gap-2 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                  autoRead
-                    ? 'bg-forest-100 text-forest-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                    : 'text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-600 dark:text-charcoal-500 dark:hover:bg-charcoal-800 dark:hover:text-charcoal-300'
-                }`}
-                title={autoRead
-                  ? (isHindi ? 'स्वतः पढ़ना बंद करें' : 'Disable auto read-aloud')
-                  : (isHindi ? 'स्वतः पढ़ना चालू करें' : 'Enable auto read-aloud')}
-                aria-pressed={autoRead}
-              >
-                <Headphones className="h-3.5 w-3.5" />
-                <span>
-                  {autoRead
-                    ? (isHindi ? 'स्वतः पढ़ना: चालू' : 'Auto read-aloud: On')
-                    : (isHindi ? 'स्वतः पढ़ना' : 'Auto read-aloud')}
-                </span>
-              </button>
-
-              {/* Stop speaking button (when active) */}
-              {speakingId && (
-                <button
-                  type="button"
-                  onClick={stopSpeaking}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40 transition animate-pulse"
-                >
-                  <VolumeX className="h-3.5 w-3.5" />
-                  {isHindi ? 'रोकें' : 'Stop reading'}
-                </button>
-              )}
+          {/* Mid-conversation language switch notification */}
+          {langSwitchNotice && (
+            <div className="flex items-center justify-center animate-fadeIn">
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700/80 px-3.5 py-1 text-xs font-semibold text-emerald-900 dark:text-emerald-200 shadow-2xs">
+                🌐 {langSwitchNotice}
+              </span>
             </div>
           )}
 
-          {/* Quick Voice Bar for fast voice follow-up */}
-          {messages.length > 0 && !isVoicePopupOpen && (
-            <div className="flex justify-center -mt-1 pb-1">
-              <button
-                type="button"
-                onClick={handleOpenVoicePopup}
-                className="inline-flex items-center gap-2 rounded-full bg-forest-700 hover:bg-forest-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-4 py-1.5 text-xs font-semibold shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
-              >
-                <Mic className="h-3.5 w-3.5 animate-pulse text-amber-300" />
-                <span>{isHindi ? '🎙️ बोलकर अगला सवाल पूछें' : '🎙️ Tap to Speak Next Question'}</span>
-              </button>
-            </div>
-          )}
-
-          {/* Input Form */}
+          {/* Symmetrical Chat Input Card */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
             }}
-            className="relative flex items-end rounded-2xl border border-border bg-white p-2.5 shadow-card transition-all focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-100 dark:border-charcoal-800 dark:bg-[#15201A] dark:focus-within:border-emerald-600 dark:focus-within:ring-emerald-950"
+            className="relative rounded-2xl border border-border bg-white p-3 shadow-card transition-all duration-200 focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-100 dark:border-charcoal-800 dark:bg-[#15201A] dark:focus-within:border-emerald-600 dark:focus-within:ring-emerald-950 sm:p-3.5"
           >
-            {/* Auto-expanding Textarea */}
+            {/* Auto-expanding Textarea - full width, symmetric padding */}
             <textarea
               ref={textareaRef}
               rows={1}
@@ -568,52 +529,92 @@ export default function AIAssistantSection({
                 }
               }}
               placeholder={placeholderText}
-              className="max-h-44 min-h-[48px] w-full resize-none bg-transparent px-3 py-2 text-sm text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none dark:text-sand-50 dark:placeholder:text-charcoal-500"
-              aria-label={isHindi ? 'अपना प्रश्न लिखें' : 'Type your question'}
+              className="max-h-44 min-h-[46px] w-full resize-none bg-transparent px-2.5 py-1 text-sm sm:text-base leading-relaxed text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none dark:text-sand-50 dark:placeholder:text-charcoal-500"
+              aria-label={t('input_placeholder', language)}
             />
 
-            {/* Actions: Voice & Send */}
-            <div className="flex items-center gap-1.5 shrink-0 pb-1 pr-1">
-              {/* Voice Input Button → Prominently styled and labeled */}
-              <button
-                type="button"
-                onClick={handleOpenVoicePopup}
-                className={`flex h-10 items-center gap-1.5 px-3 rounded-xl transition border cursor-pointer ${
-                  isListening
-                    ? 'bg-red-500 border-red-600 text-white animate-pulse'
-                    : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-forest-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
-                }`}
-                title={isHindi ? 'आवाज़ से बोलें' : 'Speak your query'}
-                aria-label={isHindi ? 'आवाज़ से बोलें' : 'Voice input'}
-              >
-                {isListening ? (
-                  <MicOff className="h-4 w-4" />
-                ) : (
-                  <Mic className="h-4 w-4 animate-pulse text-emerald-600 dark:text-emerald-400" />
-                )}
-                <span className="text-xs font-bold whitespace-nowrap">
-                  {isHindi ? 'बोलें' : 'Speak'}
-                </span>
-              </button>
+            {/* Symmetrical Bottom Action Bar */}
+            <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-border/50 dark:border-charcoal-800/70">
+              {/* Left Action Group: Voice Input & Auto Read-Aloud */}
+              <div className="flex items-center gap-2">
+                {/* Voice Input Button */}
+                <button
+                  type="button"
+                  onClick={handleOpenVoicePopup}
+                  className={`flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                    isListening
+                      ? 'bg-red-500 border-red-600 text-white animate-pulse'
+                      : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-forest-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 active:scale-95'
+                  }`}
+                  title={t('tap_to_speak', language)}
+                  aria-label={t('tap_to_speak', language)}
+                >
+                  {isListening ? (
+                    <MicOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Mic className="h-3.5 w-3.5 animate-pulse text-emerald-600 dark:text-emerald-400" />
+                  )}
+                  <span className="whitespace-nowrap font-medium">
+                    {t('tap_to_speak', language)}
+                  </span>
+                </button>
 
-              {/* Send Button */}
-              <button
-                type="submit"
-                disabled={isLoading || !inputQuery.trim()}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-600 text-white shadow-2xs transition hover:bg-forest-700 active:scale-95 disabled:opacity-40 disabled:hover:bg-forest-600 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                title={isHindi ? 'भेजें' : 'Send message'}
-                aria-label="Send"
-              >
-                <ArrowUp className="h-4 w-4 stroke-[2.5]" />
-              </button>
+                {/* Auto Read-aloud Toggle (Default Open / Active) */}
+                {ttsSupported && (
+                  <button
+                    type="button"
+                    onClick={toggleAutoRead}
+                    className={`flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-medium transition border cursor-pointer ${
+                      autoRead
+                        ? 'bg-forest-50 border-forest-200 text-forest-700 dark:bg-emerald-950/50 dark:border-emerald-800/80 dark:text-emerald-300 shadow-2xs'
+                        : 'border-border/70 text-charcoal-400 hover:bg-sand-100 hover:text-charcoal-600 dark:border-charcoal-800 dark:text-charcoal-500 dark:hover:bg-charcoal-800 dark:hover:text-charcoal-300'
+                    }`}
+                    title={autoRead ? 'Disable auto read-aloud' : 'Enable auto read-aloud'}
+                    aria-pressed={autoRead}
+                  >
+                    <Headphones className={`h-3.5 w-3.5 ${autoRead ? 'text-forest-600 dark:text-emerald-400' : ''}`} />
+                    <span className="whitespace-nowrap">
+                      {autoRead ? t('auto_read_aloud_on', language) : t('auto_read_aloud_off', language)}
+                    </span>
+                    {autoRead && (
+                      <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Right Action Group: Stop Speaking & Send */}
+              <div className="flex items-center gap-2">
+                {/* Stop speaking button (when TTS active) */}
+                {speakingId && (
+                  <button
+                    type="button"
+                    onClick={stopSpeaking}
+                    className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40 transition border border-red-200 dark:border-red-900/60 animate-pulse cursor-pointer"
+                    title={t('stop_reading', language)}
+                  >
+                    <VolumeX className="h-3.5 w-3.5" />
+                    <span>{t('stop_reading', language)}</span>
+                  </button>
+                )}
+
+                {/* Send Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputQuery.trim()}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-600 text-white shadow-2xs transition hover:bg-forest-700 active:scale-95 disabled:opacity-40 disabled:hover:bg-forest-600 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                  title={t('btn_send', language)}
+                  aria-label={t('btn_send', language)}
+                >
+                  <ArrowUp className="h-4 w-4 stroke-[2.5]" />
+                </button>
+              </div>
             </div>
           </form>
 
           {/* Disclaimer */}
           <p className="text-center text-[11px] text-charcoal-400 dark:text-charcoal-500">
-            {isHindi
-              ? 'जनसहायक आधिकारिक भारत सरकार पोर्टल्स (*.gov.in) से सत्यापित करता है। हमेशा अंतिम सरकारी सर्कुलर अवश्य देखें।'
-              : 'JanSahayak verifies eligibility against official Government of India portals (*.gov.in, *.nic.in). Always confirm with official guidelines.'}
+            {t('disclaimer', language)}
           </p>
         </div>
       </div>

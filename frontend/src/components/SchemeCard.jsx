@@ -3,8 +3,9 @@ import {
   CheckCircle2, XCircle, HelpCircle, ExternalLink, MessageSquare,
   FileText, ShieldCheck, ChevronRight, Award, Info, Sparkles, Check
 } from 'lucide-react';
+import { t } from '../utils/i18n';
 
-export default function SchemeCard({ scheme, onAskAi, isHindi = false }) {
+export default function SchemeCard({ scheme, onAskAi, isHindi = false, language = 'en' }) {
   // Tabs: 'overview', 'eligibility', 'documents', 'apply', 'check'
   const [activeCardTab, setActiveCardTab] = useState('overview');
 
@@ -253,10 +254,10 @@ export default function SchemeCard({ scheme, onAskAi, isHindi = false }) {
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                  {isHindi ? 'स्वयं पात्रता जांच (Self-Eligibility Questionnaire)' : 'Interactive Eligibility Self-Check'}
+                  {t('scheme_tab_eligibility_check', language)}
                 </span>
                 <p className="text-[11px] text-slate-500">
-                  {isHindi ? 'प्रत्येक नियम के लिए हाँ या नहीं चुनें और तुरंत अपनी पात्रता देखें:' : 'Answer Yes/No for each rule to verify if you qualify:'}
+                  {t('self_check_instructions', language)}
                 </p>
               </div>
 
@@ -266,7 +267,7 @@ export default function SchemeCard({ scheme, onAskAi, isHindi = false }) {
                   onClick={() => setSelfCheckAnswers({})}
                   className="text-[11px] text-emerald-700 hover:underline font-semibold"
                 >
-                  {isHindi ? 'रीसेट' : 'Reset'}
+                  {t('btn_reset', language)}
                 </button>
               )}
             </div>
@@ -274,8 +275,8 @@ export default function SchemeCard({ scheme, onAskAi, isHindi = false }) {
             {/* Checklist of rules with Yes/No toggle buttons */}
             <div className="space-y-2.5">
               {(rulesList.length > 0 ? rulesList : [
-                { rule_label: 'Resident citizen of India' },
-                { rule_label: 'Meets targeted demographic category' }
+                { rule_label: language === 'hi' ? 'भारत के निवासी नागरिक' : (language === 'kn' ? 'ಭಾರತೀಯ ನಿವಾಸಿ ನಾಗರಿಕ' : 'Resident citizen of India') },
+                { rule_label: language === 'hi' ? 'निर्धारित पात्रता श्रेणी के अंतर्गत' : (language === 'kn' ? 'ಉದ್ದೇಶಿತ ವರ್ಗಕ್ಕೆ ಸೇರಿದ್ದಾರೆ' : 'Meets targeted demographic category') }
               ]).map((rule, idx) => {
                 const label = rule.rule_label || rule.rule_text || rule.label || (rule.field ? `${rule.field}: ${rule.value}` : `Condition ${idx + 1}`);
                 const userAns = selfCheckAnswers[idx];
@@ -300,7 +301,7 @@ export default function SchemeCard({ scheme, onAskAi, isHindi = false }) {
                         }`}
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>{isHindi ? 'हाँ' : 'Yes'}</span>
+                        <span>{t('yes', language)}</span>
                       </button>
 
                       <button
@@ -313,7 +314,7 @@ export default function SchemeCard({ scheme, onAskAi, isHindi = false }) {
                         }`}
                       >
                         <XCircle className="w-3.5 h-3.5" />
-                        <span>{isHindi ? 'नहीं' : 'No'}</span>
+                        <span>{t('no', language)}</span>
                       </button>
                     </div>
                   </div>

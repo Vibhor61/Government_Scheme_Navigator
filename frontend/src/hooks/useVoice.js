@@ -60,7 +60,12 @@ export default function useVoice(language = 'en') {
   const [isPaused, setIsPaused] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
   const [autoRead, setAutoRead] = useState(() => {
-    try { return localStorage.getItem('jansahayak_autoread') === 'true'; } catch { return false; }
+    try {
+      const stored = localStorage.getItem('jansahayak_autoread');
+      return stored !== 'false'; // Defaults to open (true) unless explicitly toggled off
+    } catch {
+      return true;
+    }
   });
   const utteranceRef = useRef(null);
 

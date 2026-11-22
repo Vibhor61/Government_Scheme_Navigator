@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Plus, Sparkles, Globe, Bookmark, ShieldCheck, Sun, Moon, ChevronDown, Check } from 'lucide-react';
+import { t } from '../utils/i18n';
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'auto', label: 'Auto-Detect', native: 'ಸ್ವಯಂ / स्वतः', flag: '🌐' },
@@ -11,6 +12,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'ta', label: 'Tamil', native: 'தமிழ்', flag: '🇮🇳' },
   { code: 'te', label: 'Telugu', native: 'తెలుగు', flag: '🇮🇳' },
   { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી', flag: '🇮🇳' },
+  { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ', flag: '🇮🇳' },
 ];
 
 export default function ChatHeader({
@@ -65,7 +67,7 @@ export default function ChatHeader({
               <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-600 dark:bg-emerald-400" />
             </span>
             <span>
-              {language === 'kn' ? 'ಅಧಿಕೃತ ಯೋಜನೆಗಳು' : (isHindi ? 'आधिकारिक योजना स्रोत' : 'Official scheme sources')}
+              {t('official_scheme_sources', language)}
             </span>
           </div>
         </div>
@@ -95,7 +97,7 @@ export default function ChatHeader({
             className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-charcoal-700 hover:border-forest-300 hover:text-forest-700 transition dark:border-charcoal-800 dark:bg-charcoal-900 dark:text-charcoal-300 dark:hover:border-forest-600 dark:hover:text-emerald-400"
           >
             <Bookmark className="h-3.5 w-3.5 text-forest-600 dark:text-emerald-400" />
-            <span>{savedSchemesCount} {language === 'kn' ? 'ಉಳಿಸಲಾಗಿದೆ' : (isHindi ? 'सहेजी गई' : 'Saved')}</span>
+            <span>{savedSchemesCount} {t('nav_saved', language)}</span>
           </button>
         )}
 
@@ -155,7 +157,7 @@ export default function ChatHeader({
         >
           <Plus className="h-3.5 w-3.5 text-charcoal-500 dark:text-charcoal-400" />
           <span className="hidden sm:inline">
-            {language === 'kn' ? 'ಹೊಸ ಚಾಟ್' : (isHindi ? 'नई चैट' : 'New chat')}
+            {t('btn_new_chat', language)}
           </span>
         </button>
       </div>

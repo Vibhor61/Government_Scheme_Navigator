@@ -112,6 +112,12 @@ CRITICAL ROUTING INSTRUCTIONS:
    F. PURE FOREIGN PROGRAMS & INTERNATIONAL MATTERS:
       - Foreign university admissions, US/UK/Canada visas, foreign government financial aid (FAFSA, Chevening, Fulbright).
       - IMPORTANT EXCEPTION (STRICTLY IN-DOMAIN): Official Government of India schemes supporting citizens for overseas education (e.g. National Overseas Scholarship - NOS by Ministry of Social Justice for SC/ST students, or Dr. Ambedkar Central Sector Scheme) are ALWAYS IN-DOMAIN.
+   G. ROUTINE CIVIC ADMINISTRATION, LICENSING & REGULATORY COMPLIANCE:
+      - Routine administrative services: Booking Passport Seva Kendra (PSK) appointment slots, driving license testing, RTO vehicle registration (RC), or voter ID issuance.
+      - Tax return compliance: Income tax return forms (ITR-1/Sahaj, ITR-2), GST filing, paying fines/penalties, or paying traffic police e-challans.
+      - Commodity/bullion rates: Live 24k/22k gold prices, silver rates, stock market prices.
+      - Private medical appointments: Booking doctor consultations or OPD slots at private hospitals (e.g. Apollo, Fortis).
+      - Note: Routine civic administration and compliance are NOT welfare schemes. If the citizen is trying to book an administrative slot, file a tax return, pay a fine, or buy commodities, mark is_out_of_domain = true.
 
    When is_out_of_domain = true:
    - Provide a concise out_of_domain_reason.
@@ -255,9 +261,36 @@ Analyze this message, classify the workflow, identify language and script, formu
             )
             return result
 
-        # Fallback if LLM is unavailable or returns malformed response
-        logger.warning("LLM router returned invalid response or was unreachable; using safe fallback.")
-        return self._fallback_route(user_query, conversation_history, user_profile, preferred_language=pref_lang)
+        # Direct authentic notification if upstream Groq LLM is unavailable or rate limited
+        logger.warning("LLM router returned invalid response or hit capacity limit; returning transparent service notice.")
+        from .domain_guard import generate_service_unavailable_response
+        lang_info = detect_script_and_language(user_query, pref_lang)
+        detected_lang = lang_info["detected_language"]
+        return {
+            "is_out_of_domain": False,
+            "is_service_unavailable": True,
+            "service_message": generate_service_unavailable_response(detected_lang),
+            "workflow": "SERVICE_UNAVAILABLE",
+            "target_schemes": [],
+            "detected_language": detected_lang,
+            "language_name": lang_info["language_name"],
+            "script_type": lang_info["script_type"],
+            "beneficiary": {
+                "is_self": True,
+                "applicant_role": "citizen",
+                "target_description": "self",
+            },
+            "extracted_criteria": {},
+            "myscheme_search_terms": [],
+            "search_specification": {
+                "core_intent": user_query[:80],
+                "target_sector": "General Welfare",
+                "target_role": "citizen",
+                "search_queries": [],
+                "must_include_keywords": [],
+                "must_exclude_keywords": [],
+            },
+        }
 
     def _fallback_route(
         self,
@@ -329,12 +362,63 @@ Analyze this message, classify the workflow, identify language and script, formu
         elif any(k in lower_query for k in ["eligible", "eligibility", "am i eligible"]) or len(fallback_criteria) >= 2:
             workflow = "ELIGIBILITY_CHECK"
 
+        is_agri = any(k in query_for_intent for k in [
+            "farm", "kisan", "crop", "agri", "tractor", "pump", "raita", "sheti", "agriculture",
+            "किसान", "कृषि", "खेती", "फसल",
+            "ಕೃಷಿ", "ರೈತ", "ಬೆಳೆ", "ಕೃಷಿಕ",
+            "চাষ", "কৃষি", "কৃষক", "ফসল",
+            "விவசாய", "உழவர்", "பயிர்", "வேளாண்",
+            "వ్యవసాయ", "రైతు", "పంట",
+            "ખેતી", "ખેડૂત", "પાક", "કૃષિ",
+            "ਖੇਤੀ", "ਕਿਸਾਨ", "ਫਸਲ",
+        ])
+        is_edu = any(k in query_for_intent for k in [
+            "study", "student", "btech", "college", "school", "scholarship", "exam", "vidyanidhi", "chhatro", "education",
+            "शिक्षा", "एजुकेशन", "पढ़ाई", "छात्र", "विद्यार्थी", "छात्रवृत्ति", "स्कॉलरशिप",
+            "ಶಿಕ್ಷಣ", "ವಿದ್ಯಾರ್ಥಿ", "ವಿದ್ಯಾರ್ಥಿವೇತನ", "ಶಾಲೆ", "ಕಾಲೇಜು",
+            "শিক্ষা", "ছাত্র", "বৃত্তি", "স্কুল", "কলেজ",
+            "கல்வி", "மாணவர்", "உதவித்தொகை", "பள்ளி", "கல்லூரி",
+            "చదువు", "విద్య", "విద్యార్థి", "స్కాలర్‌షిప్", "పాఠశాల", "కళాశాల",
+            "શિક્ષણ", "વિદ્યાર્થી", "શિષ્યવૃત્તિ", "શાળા", "કોલેજ",
+            "ਸਿੱਖਿਆ", "ਵਿਦਿਆਰਥੀ", "ਵਜ਼ੀਫ਼ਾ", "ਸਕੂਲ", "ਕਾਲਜ",
+        ])
+        is_biz = any(k in query_for_intent for k in [
+            "business", "loan", "startup", "msme", "mudra", "shop", "manufacturing", "salavannu", "karj",
+            "व्यापार", "लोन", "ऋण", "कर्ज", "मुद्रा",
+            "ಸಾಲ", "ವ್ಯಾಪಾರ", "ಉದ್ಯಮ",
+            "ঋণ", "লোন", "ব্যবসা", "উদ্যোগ",
+            "கடன்", "தொழில்", "வணிகம்",
+            "రుణం", "వ్యాపారం", "ఉద్యోగం", "లోన్",
+            "લોન", "વેપાર", "ધંધો", "કરજ",
+            "ਕਰਜ਼ਾ", "ਲੋਨ", "ਕਾਰੋਬਾਰ", "ਵਪਾਰ",
+        ])
+        is_health = any(k in query_for_intent for k in [
+            "health", "hospital", "doctor", "treatment", "disease", "elderly", "parent", "ayushman",
+            "स्वास्थ्य", "इलाज", "अस्पताल", "दवा", "आयुष्मान", "आरोग्य",
+            "ಆರೋಗ್ಯ", "ಆಸ್ಪತ್ರೆ", "ಔಷಧಿ", "ಚಿಕಿತ್ಸೆ",
+            "স্বাস্থ্য", "হাসপাতাল", "ওষুধ", "চিকিৎসা",
+            "சுகாதாரம்", "மருத்துவமனை", "மருந்து", "சிகிச்சை",
+            "ఆరోగ్యం", "ఆసుపత్రి", "వైద్యం", "మందులు",
+            "આરોગ્ય", "હોસ્પિટલ", "દવા", "સારવાર",
+            "ਸਿਹਤ", "ਹਸਪਤਾਲ", "ਦਵਾਈ", "ਇਲਾਜ",
+        ])
+        is_girl = any(k in query_for_intent for k in ["girl", "daughter", "single girl", "beti", "kanya", "बेटी", "कन्या", "बालिका", "लाडली"])
+        has_edu_loan = is_edu and any(k in query_for_intent for k in ["loan", "लोन", "ऋण", "कर्ज", "interest subsidy", "subsidy", "सब्सिडी", "ಸಾಲ", "రుణం"])
+
         # Search terms from query words (filtering for ascii/alphanumeric or canonical terms)
         words = [w for w in re.findall(r"\b[a-zA-Z0-9-]+\b", query_for_intent) if len(w) > 3][:4]
         
-        # If words are empty due to Indic native script, supply English domain terms based on detected language
+        # If words are empty due to Indic native script, supply English domain terms based on detected intent
         if not words:
-            if lang_info["detected_language"] == "kn":
+            if is_agri:
+                words = ["kisan", "farmer", "agriculture", "loan"]
+            elif is_edu:
+                words = ["scholarship", "student", "education"]
+            elif is_biz:
+                words = ["business", "loan", "msme"]
+            elif is_health:
+                words = ["health", "hospital", "ayushman"]
+            elif lang_info["detected_language"] == "kn":
                 words = ["karnataka", "welfare", "scheme"]
             elif lang_info["detected_language"] in ("hi", "mr"):
                 words = ["central", "welfare", "scheme"]
@@ -348,13 +432,6 @@ Analyze this message, classify the workflow, identify language and script, formu
         target_role = "citizen"
         must_include = list(words) if words else ["scheme"]
         must_exclude = []
-
-        is_agri = any(k in query_for_intent for k in ["farm", "kisan", "crop", "agri", "tractor", "pump", "raita", "sheti", "किसान", "कृषि", "खेती", "फसल"])
-        is_edu = any(k in query_for_intent for k in ["study", "student", "btech", "college", "school", "scholarship", "exam", "vidyanidhi", "chhatro", "education", "शिक्षा", "एजुकेशन", "पढ़ाई", "छात्र", "विद्यार्थी", "छात्रवृत्ति", "स्कॉलरशिप"])
-        is_biz = any(k in query_for_intent for k in ["business", "loan", "startup", "msme", "mudra", "shop", "manufacturing", "salavannu", "karj", "व्यापार", "लोन", "ऋण", "कर्ज", "मुद्रा"])
-        is_health = any(k in query_for_intent for k in ["health", "hospital", "doctor", "treatment", "disease", "elderly", "parent", "ayushman", "स्वास्थ्य", "इलाज", "अस्पताल", "दवा", "आयुष्मान"])
-        is_girl = any(k in query_for_intent for k in ["girl", "daughter", "single girl", "beti", "kanya", "बेटी", "कन्या", "बालिका", "लाडली"])
-        has_edu_loan = is_edu and any(k in query_for_intent for k in ["loan", "लोन", "ऋण", "कर्ज", "interest subsidy", "subsidy", "सब्सिडी"])
 
         if is_agri:
             target_sector = "Agriculture & Rural"

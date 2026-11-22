@@ -10,8 +10,9 @@ import {
   ChevronUp,
   ExternalLink
 } from 'lucide-react';
+import { t } from '../utils/i18n';
 
-export default function WelfareStackCard({ stack, isHindi = false }) {
+export default function WelfareStackCard({ stack, isHindi = false, language = 'en' }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (!stack) return null;
@@ -26,6 +27,10 @@ export default function WelfareStackCard({ stack, isHindi = false }) {
     application_sequence = []
   } = stack;
 
+  const displayBadge = badge === 'Policy Convergence Approved'
+    ? t('policy_convergence_approved', language)
+    : (badge || t('policy_convergence_approved', language));
+
   return (
     <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-300 dark:border-emerald-700/60 bg-gradient-to-br from-emerald-50/95 via-white to-teal-50/80 dark:from-[#0E1B15] dark:via-[#101F18] dark:to-[#091510] p-5 shadow-sm transition-all duration-200 hover:shadow-md animate-fadeIn">
       {/* Background subtle watermark icon */}
@@ -39,11 +44,11 @@ export default function WelfareStackCard({ stack, isHindi = false }) {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-xs dark:bg-emerald-600">
               <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
-              <span>{isHindi ? 'सरकारी योजना कॉम्बो' : 'Synergistic Welfare Stack'}</span>
+              <span>{t('synergistic_welfare_stack', language)}</span>
             </span>
-            {badge && (
+            {displayBadge && (
               <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200 dark:border-emerald-800/60 dark:bg-emerald-950/80 dark:text-emerald-300">
-                {badge}
+                {displayBadge}
               </span>
             )}
           </div>
@@ -53,7 +58,7 @@ export default function WelfareStackCard({ stack, isHindi = false }) {
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-1 text-xs font-medium text-emerald-800 hover:text-emerald-950 transition dark:text-emerald-300 dark:hover:text-emerald-100"
           >
-            <span>{isExpanded ? (isHindi ? 'संक्षिप्त करें' : 'Collapse') : (isHindi ? 'विस्तार देखें' : 'View Full Roadmap')}</span>
+            <span>{isExpanded ? (language === 'hi' ? 'संक्षिप्त करें' : 'Collapse') : (language === 'hi' ? 'विस्तार देखें' : 'View Full Roadmap')}</span>
             {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
         </div>
@@ -77,7 +82,7 @@ export default function WelfareStackCard({ stack, isHindi = false }) {
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
-                  {isHindi ? 'कुल संचयी सहायता (Total Combined Impact):' : 'Total Combined Benefit Package:'}
+                  {t('total_combined_impact_label', language)}
                 </p>
                 <p className="text-sm sm:text-base font-extrabold text-white dark:text-emerald-100 mt-0.5">
                   {total_financial_impact}
@@ -91,7 +96,7 @@ export default function WelfareStackCard({ stack, isHindi = false }) {
         {schemes.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-charcoal-400">
-              {isHindi ? 'सम्मिलित योजनाएं (Combined Schemes):' : 'Schemes Combined In This Stack:'}
+              {t('combined_schemes_label', language)}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {schemes.map((s, idx) => (
@@ -134,7 +139,7 @@ export default function WelfareStackCard({ stack, isHindi = false }) {
           <div className="rounded-xl border border-emerald-200 bg-white dark:border-emerald-800/50 dark:bg-[#132019] p-4 space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 dark:text-emerald-300 uppercase tracking-wider">
               <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span>{isHindi ? 'अनुशंसित आवेदन क्रम (Application Sequence):' : 'Optimal Sequential Application Order:'}</span>
+              <span>{t('application_sequence_label', language)}</span>
             </div>
             <div className="space-y-2.5">
               {application_sequence.map((step, sIdx) => (
