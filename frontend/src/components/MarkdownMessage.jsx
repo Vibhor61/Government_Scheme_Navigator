@@ -181,29 +181,43 @@ export default function MarkdownMessage({ content }) {
     // End of lists
     flushList();
 
-    // Headings
-    if (line.startsWith('### ')) {
-      elements.push(
-        <h4 key={`h4-${i}`} className="mt-4 mb-2 text-sm font-bold text-charcoal-900 tracking-tight">
-          {renderInline(line.slice(4))}
-        </h4>
-      );
-      continue;
-    }
-    if (line.startsWith('## ')) {
-      elements.push(
-        <h3 key={`h3-${i}`} className="mt-5 mb-2.5 text-base font-bold text-charcoal-900 tracking-tight">
-          {renderInline(line.slice(3))}
-        </h3>
-      );
-      continue;
-    }
-    if (line.startsWith('# ')) {
-      elements.push(
-        <h2 key={`h2-${i}`} className="mt-6 mb-3 text-lg font-bold text-charcoal-900 tracking-tight">
-          {renderInline(line.slice(2))}
-        </h2>
-      );
+    // Headings (supports # through ######)
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const headingContent = headingMatch[2];
+      if (level === 1) {
+        elements.push(
+          <h2 key={`h1-${i}`} className="mt-6 mb-3 text-lg font-bold text-charcoal-900 tracking-tight">
+            {renderInline(headingContent)}
+          </h2>
+        );
+      } else if (level === 2) {
+        elements.push(
+          <h3 key={`h2-${i}`} className="mt-5 mb-2.5 text-base font-bold text-charcoal-900 tracking-tight">
+            {renderInline(headingContent)}
+          </h3>
+        );
+      } else if (level === 3) {
+        elements.push(
+          <h4 key={`h3-${i}`} className="mt-4 mb-2 text-sm font-bold text-charcoal-900 tracking-tight">
+            {renderInline(headingContent)}
+          </h4>
+        );
+      } else if (level === 4) {
+        elements.push(
+          <h5 key={`h4-${i}`} className="mt-3 mb-1.5 text-sm font-semibold text-charcoal-900 tracking-tight">
+            {renderInline(headingContent)}
+          </h5>
+        );
+      } else {
+        // level 5, 6
+        elements.push(
+          <h6 key={`h${level}-${i}`} className="mt-2.5 mb-1 text-xs font-semibold text-charcoal-800 uppercase tracking-wider">
+            {renderInline(headingContent)}
+          </h6>
+        );
+      }
       continue;
     }
 

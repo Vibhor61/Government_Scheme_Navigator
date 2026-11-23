@@ -901,8 +901,26 @@ class PolicyInteractionEngine:
         if not llm_service.api_key:
             return None
 
+        # Filter schemes passed to LLM by query domain if user_query is domain-specific
+        target_sector = None
+        q_lower = user_query.lower()
+        for sec, meta in SECTOR_TAXONOMY.items():
+            if any(kw in q_lower for kw in meta["keywords"]):
+                target_sector = sec
+                break
+
+        relevant_schemes = schemes
+        if target_sector:
+            filtered = [
+                s for s in schemes
+                if _classify_scheme_domain(s) in (target_sector, "general_welfare")
+                or (target_sector == "agriculture" and _classify_scheme_domain(s) in ("agriculture", "housing"))
+            ]
+            if filtered:
+                relevant_schemes = filtered
+
         schemes_context = []
-        for s in schemes[:6]:
+        for s in relevant_schemes[:6]:
             schemes_context.append({
                 "name": s.get("scheme_name") or s.get("name", "Unknown Scheme"),
                 "level": s.get("level") or s.get("jurisdiction", "Central"),
@@ -1034,7 +1052,12 @@ class PolicyInteractionEngine:
 
             stacked_items = []
             seen_names = set()
-            for s in schemes[:4]:
+            sector_schemes = [
+                s for s in schemes
+                if _classify_scheme_domain(s) in (target_sector, "general_welfare")
+                or (target_sector == "agriculture" and _classify_scheme_domain(s) in ("agriculture", "housing"))
+            ]
+            for s in sector_schemes[:4]:
                 name = s.get("scheme_name") or s.get("name")
                 if not name or name in seen_names:
                     continue
@@ -1049,22 +1072,25 @@ class PolicyInteractionEngine:
                     "url": s.get("url", "https://www.myscheme.gov.in")
                 })
 
-            welfare_stack = {
-                "bundle_title": meta["stack_title"],
-                "bundle_type": meta["stack_type"],
-                "badge": "Policy Convergence Approved",
-                "description": meta["rationale"],
-                "total_financial_impact": meta["default_impact"],
-                "schemes": stacked_items,
-                "application_sequence": [
-                    {
-                        "step": idx + 1,
-                        "title": step[0],
-                        "instruction": step[1]
-                    }
-                    for idx, step in enumerate(meta["seq"][:len(stacked_items)])
-                ]
-            }
+            if len(stacked_items) >= 2:
+                welfare_stack = {
+                    "bundle_title": meta["stack_title"],
+                    "bundle_type": meta["stack_type"],
+                    "badge": "Policy Convergence Approved",
+                    "description": meta["rationale"],
+                    "total_financial_impact": meta["default_impact"],
+                    "schemes": stacked_items,
+                    "application_sequence": [
+                        {
+                            "step": idx + 1,
+                            "title": step[0],
+                            "instruction": step[1]
+                        }
+                        for idx, step in enumerate(meta["seq"][:len(stacked_items)])
+                    ]
+                }
+            else:
+                welfare_stack = None
 
         primary_conflict = conflicts[0] if conflicts else None
 

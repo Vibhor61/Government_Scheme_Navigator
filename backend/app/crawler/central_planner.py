@@ -264,23 +264,92 @@ class CentralAgentPlanner:
         search_terms = router_res.get("myscheme_search_terms", [])
         workflow = router_res.get("workflow", "SCHEME_DISCOVERY")
 
-        # Detect if this turn is an eligibility questionnaire submission
+        # Determine whether this turn is an explicit questionnaire submission vs a new query
+        user_text = (user_query or "").strip()
+        user_text_lower = user_text.lower()
+
+        has_questionnaire_syntax = (
+            ":" in user_text
+            or any(k in user_text_lower for k in [
+                "submitted details", "दर्ज विवरण", "ಸಲ್ಲಿಸಿದ ವಿವರ", "मेरी पात्रता का मूल्यांकन करें", "विवरण:"
+            ])
+            or (
+                conversation_history and any(
+                    isinstance(m, dict) and m.get("role") == "assistant" and any(k in str(m.get("content", "")).lower() for k in ["question", "clarification", "select", "नीचे दिए गए प्रश्नों", "ಕೆಳಗಿನ"])
+                    for m in conversation_history[-2:]
+                )
+                and len(user_text.split()) <= 4
+                and any(opt in user_text_lower for opt in ["yes", "no", "general", "obc", "sc", "st", "male", "female", "urban", "rural", "acre", "lakh", "farmer", "student"])
+            )
+        )
+
+        is_substantive_new_query = (
+            len(user_text.split()) > 3
+            and not has_questionnaire_syntax
+            and not user_clarification
+            and workflow in ("SCHEME_DISCOVERY", "SCHEME_LOOKUP", "GREETING", "PROCEDURAL_GUIDE")
+        )
+
         is_questionnaire_submission = bool(
-            user_profile or
-            user_clarification or
-            workflow == "ELIGIBILITY_CHECK" or
-            (conversation_history and any(
-                isinstance(m, dict) and m.get("role") == "assistant" and any(k in str(m.get("content", "")).lower() for k in ["question", "eligibility", "confirm"])
-                for m in conversation_history[-2:]
-            ) and any(opt in user_query.lower() for opt in [":", "acre", "farmer", "student", "income", "lakh", "general", "obc", "sc", "st"]))
+            not is_substantive_new_query and (
+                user_clarification
+                or has_questionnaire_syntax
+                or (workflow == "ELIGIBILITY_CHECK" and not is_substantive_new_query)
+            )
         )
         if is_questionnaire_submission:
             workflow = "ELIGIBILITY_CHECK"
 
+        # Domain / Sector Shift Detection
+        spec_sector = (router_res.get("search_specification") or {}).get("target_sector") or router_res.get("target_sector") or ""
+        spec_sector_lower = spec_sector.lower()
+
+        def _detect_text_sector(text: str) -> str:
+            t = text.lower()
+            if any(k in t for k in ["hospital", "surgery", "health", "treatment", "ayushman", "doctor", "medical", "aspatal", "अस्पताल", "सर्जरी", "इलाज", "दवा", "चिकित्सा", "ಆಸ್ಪತ್ರೆ", "ಚಿಕಿತ್ಸೆ"]):
+                return "health"
+            if any(k in t for k in ["tractor", "farm", "kisan", "crop", "agriculture", "smam", "kusum", "khatauni", "khasra", "खेती", "किसान", "फसल", "ट्रैक्टर", "ರೈತ", "ಕೃಷಿ"]):
+                return "agriculture"
+            if any(k in t for k in ["scholarship", "student", "matric", "tuition", "school", "college", "vidyanidhi", "छात्रवृत्ति", "शिक्षा", "ವಿದ್ಯಾರ್ಥಿ"]):
+                return "education"
+            if any(k in t for k in ["business", "loan", "mudra", "pmegp", "startup", "व्यापार", "उद्योग", "ಉದ್ಯಮ"]):
+                return "business"
+            if any(k in t for k in ["house", "awas", "housing", "आवास", "घर", "ಮನೆ"]):
+                return "housing"
+            return "general"
+
+        active_domain = (
+            "health" if any(w in spec_sector_lower for w in ["health", "medical"])
+            else "agriculture" if any(w in spec_sector_lower for w in ["agri", "rural", "farm"])
+            else "education" if any(w in spec_sector_lower for w in ["edu", "learn", "scholar"])
+            else "business" if any(w in spec_sector_lower for w in ["busin", "enterpr", "msme"])
+            else "housing" if any(w in spec_sector_lower for w in ["hous", "energy"])
+            else _detect_text_sector(user_query)
+        )
+
+        prev_domain = "general"
+        if conversation_history:
+            prev_user_texts = [
+                str(m.get("content") or m.get("text") or "").strip()
+                for m in conversation_history
+                if isinstance(m, dict) and (m.get("role") == "user" or m.get("sender") == "user")
+            ]
+            for pt in reversed(prev_user_texts):
+                d = _detect_text_sector(pt)
+                if d != "general":
+                    prev_domain = d
+                    break
+
+        is_domain_shift = bool(
+            active_domain != "general"
+            and prev_domain != "general"
+            and active_domain != prev_domain
+        )
+
         # Anchor on conversation context and prior schemes if user is answering follow-up questions
         history_schemes = []
         root_query = user_query
-        if conversation_history:
+        if conversation_history and not is_domain_shift:
             for m in reversed(conversation_history[-4:]):
                 txt = str(m.get("content") or m.get("text") or "")
                 for s in MYSCHEME_FLAGSHIP_CATALOG:
@@ -290,19 +359,20 @@ class CentralAgentPlanner:
                         if s["name"] not in [x["name"] for x in history_schemes]:
                             history_schemes.append(s)
 
-            user_messages = [
-                str(m.get("content") or m.get("text") or "").strip()
-                for m in conversation_history
-                if isinstance(m, dict) and (m.get("role") == "user" or m.get("sender") == "user")
-            ]
-            substantive = [
-                q for q in user_messages
-                if len(q.split()) > 3 and not any(q.lower() == opt for opt in ["male", "female", "urban", "rural", "yes", "no", "general", "obc", "sc", "st"]) and ":" not in q
-            ]
-            if substantive:
-                root_query = substantive[-1]
+            if is_questionnaire_submission:
+                user_messages = [
+                    str(m.get("content") or m.get("text") or "").strip()
+                    for m in conversation_history
+                    if isinstance(m, dict) and (m.get("role") == "user" or m.get("sender") == "user")
+                ]
+                substantive = [
+                    q for q in user_messages
+                    if len(q.split()) > 3 and not any(q.lower() == opt for opt in ["male", "female", "urban", "rural", "yes", "no", "general", "obc", "sc", "st"]) and ":" not in q
+                ]
+                if substantive:
+                    root_query = substantive[-1]
 
-        if is_questionnaire_submission and history_schemes and not target_schemes:
+        if is_questionnaire_submission and history_schemes and not target_schemes and not is_domain_shift:
             target_schemes = [s["name"] for s in history_schemes]
 
         spec_queries = router_res.get("search_specification", {}).get("search_queries") or search_terms
@@ -347,7 +417,7 @@ class CentralAgentPlanner:
         candidate_schemes = crawler_res.get("candidate_schemes", [])
 
         # Retain candidate schemes from history during questionnaire evaluation
-        if is_questionnaire_submission and history_schemes:
+        if is_questionnaire_submission and history_schemes and not is_domain_shift:
             existing_names = {s["name"] for s in candidate_schemes}
             for hs in history_schemes:
                 if hs["name"] not in existing_names:
@@ -355,7 +425,7 @@ class CentralAgentPlanner:
                     existing_names.add(hs["name"])
 
         # Root intent recovery for follow-up turns if search yielded 0 schemes
-        if not candidate_schemes and conversation_history:
+        if not candidate_schemes and conversation_history and not is_domain_shift and is_questionnaire_submission:
             user_messages = [
                 str(m.get("content") or m.get("text") or "").strip()
                 for m in conversation_history
@@ -404,7 +474,29 @@ class CentralAgentPlanner:
         # TOOL 3: QuestionnaireTool (Dynamic Semantic Diffing)
         # =========================================================================
         t3_start = time.time()
-        merged_profile = {**(user_profile or {}), **extracted_criteria}
+        # Prune stale sector-specific profile attributes when domain shifts
+        effective_profile = dict(user_profile or {})
+        if is_domain_shift:
+            AGRI_KEYS = {"landholding", "landholding_category", "cultivable_land", "farmer_type", "khasra", "khatauni", "crop", "tractor", "farm_machinery", "soil_type", "irrigation"}
+            EDU_KEYS = {"class_grade", "course", "marks", "percentage", "board", "college", "school", "neet_score", "jee_score", "student_status"}
+            BIZ_KEYS = {"business_type", "investment", "turnover", "enterprise_category", "msme_type"}
+
+            keys_to_remove = set()
+            if active_domain != "agriculture":
+                keys_to_remove.update(AGRI_KEYS)
+                if effective_profile.get("occupation") == "farmer":
+                    keys_to_remove.add("occupation")
+            if active_domain != "education":
+                keys_to_remove.update(EDU_KEYS)
+                if effective_profile.get("occupation") == "student":
+                    keys_to_remove.add("occupation")
+            if active_domain != "business":
+                keys_to_remove.update(BIZ_KEYS)
+
+            for k in keys_to_remove:
+                effective_profile.pop(k, None)
+
+        merged_profile = {**effective_profile, **extracted_criteria}
         if user_clarification:
             merged_profile["clarification"] = user_clarification
 
